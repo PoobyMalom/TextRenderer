@@ -1,0 +1,41 @@
+# Ignore object files, binary files, and other build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+*.out
+*.elf
+*.app
+
+# Ignore the compiled binary
+main
+
+# Ignore directories with build artifacts
+src/*.o
+test/*.o
+*.dSYM
+
+# Ignore temporary files
+*.tmp
+*.swp
+*.bak
+
+# Ignore IDE-specific files and directories
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Ignore macOS-specific files
+.DS_Store
+
+# Ignore generated files from font processing
+fonts/*.ttx
+fonts/*.ttf
+
+# Ignore logs and cache files
+*.log
+*.cache
