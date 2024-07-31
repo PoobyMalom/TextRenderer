@@ -1,3 +1,5 @@
+include/SDL2/
+
 # Ignore object files, binary files, and other build artifacts
 *.o
 *.a
