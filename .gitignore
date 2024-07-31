@@ -10,6 +10,7 @@
 
 # Ignore the compiled binary
 main
+test
 
 # Ignore directories with build artifacts
 src/*.o
