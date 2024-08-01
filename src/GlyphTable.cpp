@@ -13,8 +13,8 @@ Glyph::Glyph(
     uint16_t instructionLength,
     vector<uint8_t> instructions,
     vector<uint8_t> flags,
-    vector<uint16_t> xCoordinates,
-    vector<uint16_t> yCoordinates
+    vector<int16_t> xCoordinates,
+    vector<int16_t> yCoordinates
 ) : numberOfContours(numberOfContours),
     xMin(xMin),
     yMin(yMin),
@@ -63,11 +63,11 @@ vector<uint8_t> Glyph::getFlags() const {
     return flags;
 }
 
-vector<uint16_t> Glyph::getXCoordinates() const {
+vector<int16_t> Glyph::getXCoordinates() const {
     return xCoordinates;
 }
 
-vector<uint16_t> Glyph::getYCoordinates() const {
+vector<int16_t> Glyph::getYCoordinates() const {
     return yCoordinates;
 }
 
@@ -113,10 +113,10 @@ Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
         }
     }
 
-    vector<uint16_t> xCoordinates;
+    vector<int16_t> xCoordinates;
     int16_t currentX = 0;
     for (int i = 0; i < totalPoints; ++i) {
-        if (flags[i] & 2) {
+        if (flags[i] & 2) { // Short vector
             uint8_t delta = static_cast<uint8_t>(data[pos++]);
             if (!(flags[i] & 16)) { // Short vector with negative values
                 currentX -= delta;
@@ -129,17 +129,19 @@ Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
             pos += 2;
         }
         xCoordinates.push_back(currentX);
+        std::cout << "x[" << i << "]: " << currentX << std::endl; // Debug print
     }
 
-    vector<uint16_t> yCoordinates;
+    vector<int16_t> yCoordinates;
     int16_t currentY = 0;
     for (int i = 0; i < totalPoints; ++i) {
-        if (flags[i] & 4) {
-            uint8_t delta = static_cast<uint8_t>(data[pos++]);
-            if (!(flags[i] & 32)) { // Short vector with negative values
-                currentY -= delta;
-            } else { // Short vector with positive values
+        if (flags[i] & 4) { // Short vector
+            if (flags[i] & 32) { // Short vector with positive values
+                uint8_t delta = static_cast<uint8_t>(data[pos++]);
                 currentY += delta;
+            } else { // Short vector with negative values
+                int8_t delta = static_cast<int8_t>(data[pos++]);
+                currentY -= delta;
             }
         } else if (!(flags[i] & 32)) { // Long vector
             int16_t delta = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
@@ -147,10 +149,12 @@ Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
             pos += 2;
         }
         yCoordinates.push_back(currentY);
+        std::cout << "y[" << i << "]: " << currentY << std::endl; // Debug print
     }
 
     return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates);
 }
+
 
 uint32_t Glyph::convertEndian32(uint32_t value) {
     return ((value >> 24) & 0x000000FF) |

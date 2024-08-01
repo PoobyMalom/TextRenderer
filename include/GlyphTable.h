@@ -14,8 +14,8 @@ public:
         uint16_t instructionLength,
         std::vector<uint8_t> instructions,
         std::vector<uint8_t> flags,
-        std::vector<uint16_t> xCoordinates,
-        std::vector<uint16_t> yCoordinates
+        std::vector<int16_t> xCoordinates,
+        std::vector<int16_t> yCoordinates
     );
 
     int16_t getNumberOfContours() const;
@@ -27,8 +27,8 @@ public:
     uint16_t getInstructionLength() const;
     std::vector<uint8_t> getInstructions() const;
     std::vector<uint8_t> getFlags() const;
-    std::vector<uint16_t> getXCoordinates() const;
-    std::vector<uint16_t> getYCoordinates() const;
+    std::vector<int16_t> getXCoordinates() const;
+    std::vector<int16_t> getYCoordinates() const;
 
     static Glyph parseGlyph(const std::vector<char>& data, uint16_t glyphOffset);
 
@@ -42,8 +42,8 @@ private:
     uint16_t instructionLength;
     std::vector<uint8_t> instructions;
     std::vector<uint8_t> flags;
-    std::vector<uint16_t> xCoordinates;
-    std::vector<uint16_t> yCoordinates;
+    std::vector<int16_t> xCoordinates;
+    std::vector<int16_t> yCoordinates;
 
     static uint16_t convertEndian16(uint16_t value);
     static uint32_t convertEndian32(uint32_t value);
