@@ -13,6 +13,7 @@
 #include "TTFHeader.h"
 #include "HeadTable.h"
 #include "MaxpTable.h"
+#include "CmapTable.h"
 #include "LocaTable.h"
 using namespace std;
 
@@ -118,5 +119,19 @@ int main() {
     cout << "Loca Table Offset 3: " << locas[3] << endl;
     cout << "Loca Table Offset 4: " << locas[4] << endl;
     cout << "Loca Table Offset 5: " << locas[5] << endl;
+
+    CmapTable cmapTable = CmapTable::parse(buffer, cmapOffset);
+
+    char letter = 'B';
+    uint32_t unicodeValue = static_cast<uint32_t>(letter);
+    cout << "unicodeValue: 0x" << hex << unicodeValue << endl; 
+    uint16_t platformID = 0;
+    uint16_t encodingID = 4;
+    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicodeValue, platformID, encodingID);
+
+    cout << "Glyph index for 'B': " << glyphIndex << endl;
+
+    file.seekg(glyfOffset, ios::beg);
+    file.seekg(locas[glyphIndex], ios::cur);
 
 }
