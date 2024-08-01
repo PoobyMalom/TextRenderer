@@ -73,9 +73,9 @@ vector<int16_t> Glyph::getYCoordinates() const {
 
 Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
     uint16_t pos = offset;
-    std::cout << "offset in function: " << pos << std::endl;
+    //std::cout << "offset in function: " << pos << std::endl;
     int16_t numberOfContours = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    std::cout << "number of contours in method: " << numberOfContours << std::endl;
+    //std::cout << "number of contours in method: " << numberOfContours << std::endl;
     pos += 2;
     int16_t xMin = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
     pos += 2;
@@ -129,7 +129,7 @@ Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
             pos += 2;
         }
         xCoordinates.push_back(currentX);
-        std::cout << "x[" << i << "]: " << currentX << std::endl; // Debug print
+        //std::cout << "x[" << i << "]: " << currentX << std::endl; // Debug print
     }
 
     vector<int16_t> yCoordinates;
@@ -149,7 +149,7 @@ Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
             pos += 2;
         }
         yCoordinates.push_back(currentY);
-        std::cout << "y[" << i << "]: " << currentY << std::endl; // Debug print
+        //std::cout << "y[" << i << "]: " << currentY << std::endl; // Debug print
     }
 
     return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates);

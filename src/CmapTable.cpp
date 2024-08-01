@@ -35,7 +35,7 @@ void CmapSubtable::parseFormat4(const std::vector<char>& data, uint16_t offset) 
 void CmapSubtable::parseFormat12(const std::vector<char>& data, uint16_t offset) {
     uint16_t pos = offset + 12;
     format12Data.nGroups = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
-    std::cout << "nGroups: " << format12Data.nGroups << std::endl; 
+    //std::cout << "nGroups: " << format12Data.nGroups << std::endl; 
     pos += 4;
     format12Data.startCharCodes.resize(format12Data.nGroups);
     format12Data.endCharCodes.resize(format12Data.nGroups);
@@ -49,7 +49,7 @@ void CmapSubtable::parseFormat12(const std::vector<char>& data, uint16_t offset)
         format12Data.startGlyphCodes[i] = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
         pos += 4;
     }
-    std::cout << format12Data.startGlyphCodes[3] << std::endl;
+    //std::cout << format12Data.startGlyphCodes[3] << std::endl;
 }
 
 uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
@@ -80,27 +80,27 @@ uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
 CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
     uint16_t pos = offset;
     version = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    std::cout << "version confirm: " << version << std::endl;
+    //std::cout << "version confirm: " << version << std::endl;
     pos += 2;
     numSubtables = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    std::cout << "numSubtable confirm: " << numSubtables << std::endl;
+    //std::cout << "numSubtable confirm: " << numSubtables << std::endl;
     pos += 2;
-    std::cout << "------------------------------------" << std::endl;
+    //std::cout << "------------------------------------" << std::endl;
 
     for (int i = 0; i < numSubtables; ++i) {
         uint16_t platformID = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        std::cout << "platformID confirm: " << platformID << std::endl;
+        //std::cout << "platformID confirm: " << platformID << std::endl;
         pos += 2;
         uint16_t encodingID = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        std::cout << "encodingID confirm: " << encodingID << std::endl;
+        //std::cout << "encodingID confirm: " << encodingID << std::endl;
         pos += 2;
         uint32_t subtableOffset = CmapTable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
         pos += 4;
-        std::cout << "subtableOffset confirm: " << subtableOffset << std::endl;
+        //std::cout << "subtableOffset confirm: " << subtableOffset << std::endl;
         uint16_t format = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset + subtableOffset]));
-        std::cout << "format confirm: " << format << std::endl;
+        //std::cout << "format confirm: " << format << std::endl;
         subtables.emplace_back(platformID, encodingID, format, data, offset + subtableOffset);
-        std::cout << "------------------------------------" << std::endl;
+        //std::cout << "------------------------------------" << std::endl;
     }
 
 }
