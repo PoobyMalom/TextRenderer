@@ -133,3 +133,12 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, ui
 
     return Glyph::parseGlyph(data, glyfOffset + locas[glyphIndex]);
 }
+
+std::vector<Glyph> TTFFile::parseGlyphs(const std::vector<char>& data, uint16_t platformID, uint16_t encodingID, std::string letters) {
+    int numLetters = letters.size();
+    std::vector<Glyph> glyphs;
+    for (int i = 0; i < numLetters; ++i) {
+        glyphs.push_back(parseGlyph(data, platformID, encodingID, letters[i]));
+    }
+    return glyphs;
+}

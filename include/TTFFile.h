@@ -40,6 +40,7 @@ public:
 
     static TTFFile parse(const std::vector<char>& data);
     Glyph parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, char letter);
+    std::vector<Glyph> parseGlyphs(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, std::string letters);
 
 private:
     TTFHeader header;
