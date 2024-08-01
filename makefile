@@ -8,7 +8,7 @@ TEST_TARGET = test
 SRCS = main.cpp src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp
 OBJS = $(SRCS:.cpp=.o)
 
-TEST_SRCS = test.cpp src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp src/GlyphTable.cpp
+TEST_SRCS = test.cpp src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp src/GlyphTable.cpp src/TTFFile.cpp
 TEST_OBJS = $(TEST_SRCS:.cpp=.o)
 
 all: $(TARGET)
