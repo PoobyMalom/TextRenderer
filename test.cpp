@@ -19,9 +19,11 @@
 #include "TTFFile.h"
 using namespace std;
 
+const int ADVANCEWIDTH = 600;
+const int ADVANCEHEIGHT = 1320;
 
-const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 600;
+const int SCREEN_WIDTH = 1400;
+const int SCREEN_HEIGHT = 1320;
 
 // Large canvas dimension constants
 const int CANVAS_WIDTH = 10000;
@@ -74,10 +76,16 @@ int main() {
     uint16_t platformID = 0;
     uint16_t encodingID = 4;
 
-    Glyph glyph = ttfFile.parseGlyph(buffer, platformID, encodingID, letter);
+    string alph = "B";
 
-    vector<int16_t> xCoordinates = glyph.getXCoordinates();
-    vector<int16_t> yCoordinates = glyph.getYCoordinates();
+    vector<Glyph> glyphs = ttfFile.parseGlyphs(buffer, platformID, encodingID, alph);
+
+    cout << "glyphs size: " << glyphs.size() << endl;
+
+    cout << "minX: " << ttfFile.getHeadTable().getXMIN() << endl;
+    cout << "minY: " << ttfFile.getHeadTable().getYMIN() << endl;
+    cout << "maxX: " << ttfFile.getHeadTable().getXMAX() << endl;
+    cout << "maxY: " << ttfFile.getHeadTable().getYMAX() << endl;
 
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         cerr << "SDL initialization failed: " << SDL_GetError() << endl;
@@ -134,12 +142,23 @@ int main() {
     // Draw something on the canvas (example: a red rectangle)
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
-    for (int i = 0; i < xCoordinates.size(); ++i) {
-        int radius = 4;
-        //cout << "Drawing circle at (" << xCoordinates[i] << ", " << yCoordinates[i] << ") with radius " << radius << endl;
-        drawCircle(renderer, xCoordinates[i], yCoordinates[i], radius);
-    }
+    int currentXOffset = 0;
+    int currentYOffset = 0;
+    int radius = 4;
 
+    for (int i = 0; i < alph.size(); ++i) {
+        if (currentXOffset >= 9000) {
+            currentXOffset = 0;
+            currentYOffset += ADVANCEHEIGHT;
+        }
+        Glyph glyph = glyphs[i];
+        vector<int16_t> xCoordinates = glyph.getXCoordinates();
+        vector<int16_t> yCoordinates = glyph.getYCoordinates();
+        for (int j = 0; j < xCoordinates.size(); ++j) {
+            drawCircle(renderer, xCoordinates[j] + currentXOffset, SCREEN_HEIGHT - (yCoordinates[j] + currentYOffset), radius);
+        }
+        currentXOffset += ADVANCEWIDTH;
+    }
     // Reset the render target to the default window
     SDL_SetRenderTarget(renderer, nullptr);
 
@@ -204,7 +223,7 @@ int main() {
         // Update the screen
         SDL_RenderPresent(renderer);
     }
-    
+
 
     // Clean up
     SDL_DestroyTexture(canvasTexture);
