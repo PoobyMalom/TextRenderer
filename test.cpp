@@ -16,7 +16,16 @@
 #include "CmapTable.h"
 #include "LocaTable.h"
 #include "GlyphTable.h"
+#include "TTFFile.h"
 using namespace std;
+
+
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 600;
+
+// Large canvas dimension constants
+const int CANVAS_WIDTH = 10000;
+const int CANVAS_HEIGHT = 10000;
 
 //thanks chatGPT
 void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
@@ -56,206 +65,153 @@ int main() {
 
     vector<char> buffer(fileSize);
     file.read(buffer.data(), fileSize);
-    TTFHeader header = TTFHeader::parse(buffer);
 
-    uint16_t numTables = header.getNumTables();
+    TTFFile ttfFile = TTFFile::parse(buffer);
 
-    cout << "Number of Tables: " << numTables << endl;
-
-    file.seekg(0, ios::beg);
-    
-    vector<TTFTable*> tables = TTFTable::parseTableDirectory(buffer, numTables);
-
-    uint16_t cmapOffset;
-    uint16_t glyfOffset;
-    uint16_t headOffset;
-    uint16_t locaOffset;
-    uint16_t maxpOffset;
-
-    for (int i = 0; i < tables.size(); ++i) {
-        TTFTable* tempTable = tables[i];
-        if (tempTable->getTag() == "cmap") {
-            cmapOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "glyf") {
-            glyfOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "head") {
-            headOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "loca") {
-            locaOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "maxp") {
-            maxpOffset = tempTable->getOffset();
-        }
-    }
-
-    cout << "---------------------------------" << endl;
-    cout << "cmap offset: " << cmapOffset << endl;
-    cout << "glyf offset: " << glyfOffset << endl;
-    cout << "head offset: " << headOffset << endl;
-    cout << "loca offset: " << locaOffset << endl;
-    cout << "maxp offset: " << maxpOffset << endl;
-    cout << "---------------------------------" << endl;
-
-    HeadTable headTable = HeadTable::parseHeadDirectory(buffer, headOffset);
-    bool indexToLocFormat = static_cast<bool>(headTable.getIndexToLocFormat());
-    cout << "indexToLocFormat: " << indexToLocFormat << endl;
-
-    MaxpTable maxpTable = MaxpTable::parseMaxpDirectory(buffer, maxpOffset);
-    uint16_t numGlyphs = maxpTable.getNumGlyphs();
-    cout << "Number of Glyphs: " << numGlyphs << endl; 
-
-    LocaTable locaTable = LocaTable::parse(indexToLocFormat, buffer, locaOffset, numGlyphs);
-    
-    vector<uint32_t> locas;
-
-    if (indexToLocFormat) {
-        const vector<uint32_t>& locas32 = locaTable.getOffsets32();
-        for (uint32_t loca : locas32) {
-            locas.push_back(loca);
-        }
-    }
-    else {
-        const vector<uint16_t>& locas16 = locaTable.getOffsets16();
-        for (uint16_t loca : locas16) {
-            locas.push_back(loca);
-        }
-    }
-
-    /*for (uint16_t loca : locas) {
-        cout << "loca: " << loca << endl;
-    }*/
-
-    cout << "Loca Table Offset 0: " << locas[0] << endl;
-    cout << "Loca Table Offset 1: " << locas[1] << endl;
-    cout << "Loca Table Offset 2: " << locas[2] << endl;
-    cout << "Loca Table Offset 3: " << locas[3] << endl;
-    cout << "Loca Table Offset 4: " << locas[4] << endl;
-    cout << "Loca Table Offset 5: " << locas[5] << endl;
-
-    CmapTable cmapTable = CmapTable::parse(buffer, cmapOffset);
+    cout << "Number of Tables: " << ttfFile.getHeader().getNumTables() << endl;
 
     char letter = 'B';
-    uint32_t unicodeValue = static_cast<uint32_t>(letter);
-    cout << "unicodeValue: 0x" << hex << unicodeValue << endl; 
     uint16_t platformID = 0;
     uint16_t encodingID = 4;
-    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicodeValue, platformID, encodingID);
 
-    cout << "glyphIndex: " << glyphIndex << endl;
-    cout << "B glyf offset: " << locas[glyphIndex] << endl;
+    Glyph glyph = ttfFile.parseGlyph(buffer, platformID, encodingID, letter);
 
-    Glyph glyph = Glyph::parseGlyph(buffer, glyfOffset + locas[glyphIndex]);
-
-    cout << "number of contours: " << glyph.getNumberOfContours() << endl;
-    cout << "xMin: " << dec << glyph.getXMin() << endl;
-    cout << "yMin: " << glyph.getYMin() << endl;
-    cout << "xMax: " << glyph.getXMax() << endl;
-    cout << "yMax: " << glyph.getYMax() << endl;
-
-    vector<uint8_t> flags = glyph.getFlags();
-    for (uint8_t flag : flags) {
-        bitset<8> bits(flag);
-        cout << bits << endl;
-    }
-    cout << "length of flags: " << flags.size() << endl;
-
-    vector<uint16_t> xCoordinates = glyph.getXCoordinates();
-    vector<uint16_t> yCoordinates = glyph.getYCoordinates();
-    for (int i = 0; i < flags.size(); ++i) {
-        cout << "x: " << xCoordinates[i] << " | y: " << yCoordinates[i] << endl;
-    }
-
-    /*
-    uint16_t numberOfContours;
-    file.read(reinterpret_cast<char*>(&numberOfContours), sizeof(uint16_t));
-    numberOfContours = convertEndian16(numberOfContours);
-    cout << "numberOfContours: " << numberOfContours << endl;
-
-    int16_t xMin;
-    int16_t yMin;
-    int16_t xMax;
-    int16_t yMax;
-
-    file.read(reinterpret_cast<char*>(&xMin), sizeof(int16_t));
-    file.read(reinterpret_cast<char*>(&yMin), sizeof(int16_t));
-    file.read(reinterpret_cast<char*>(&xMax), sizeof(int16_t));
-    file.read(reinterpret_cast<char*>(&yMax), sizeof(int16_t));
-
-    xMin = convertEndian16(xMin);
-    yMin = convertEndian16(yMin);
-    xMax = convertEndian16(xMax);
-    yMax = convertEndian16(yMax);
-
-    cout << "xMin: " << dec << xMin << endl;
-    cout << "yMin: " << yMin << endl;
-    cout << "xMax: " << xMax << endl;
-    cout << "yMax: " << yMax << endl;
-    */
+    vector<int16_t> xCoordinates = glyph.getXCoordinates();
+    vector<int16_t> yCoordinates = glyph.getYCoordinates();
 
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         cerr << "SDL initialization failed: " << SDL_GetError() << endl;
         return 1;
     }
 
-    // Create SDL window and renderer
-    const int winWidth = 1000;
-    const int winHeight = 1000;
-    SDL_Window *win = SDL_CreateWindow("SDL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, winWidth, winHeight, 0);
-    if (win == nullptr) {
-        cerr << "Failed to create SDL window: " << SDL_GetError() << endl;
-        SDL_Quit();
-        return 1;
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+        return -1;
     }
 
-    SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (ren == nullptr) {
-        cerr << "Failed to create SDL renderer: " << SDL_GetError() << endl;
-        SDL_DestroyWindow(win);
-        SDL_Quit();
-        return 1;
+    // Create window
+    SDL_Window* window = SDL_CreateWindow("Scrollable SDL Window",
+                                          SDL_WINDOWPOS_UNDEFINED,
+                                          SDL_WINDOWPOS_UNDEFINED,
+                                          SCREEN_WIDTH,
+                                          SCREEN_HEIGHT,
+                                          SDL_WINDOW_SHOWN);
+    if (window == nullptr) {
+        std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        return -1;
     }
+
+    // Create renderer for window
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (renderer == nullptr) {
+        std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // Create a texture to represent the large canvas
+    SDL_Texture* canvasTexture = SDL_CreateTexture(renderer,
+                                                   SDL_PIXELFORMAT_RGBA8888,
+                                                   SDL_TEXTUREACCESS_TARGET,
+                                                   CANVAS_WIDTH,
+                                                   CANVAS_HEIGHT);
+    if (canvasTexture == nullptr) {
+        std::cerr << "Texture could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // Set the canvas texture as the target for rendering
+    SDL_SetRenderTarget(renderer, canvasTexture);
+
+    // Clear the canvas texture with a color (for example, white)
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderClear(renderer);
+
+    // Draw something on the canvas (example: a red rectangle)
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+    for (int i = 0; i < xCoordinates.size(); ++i) {
+        int radius = 4;
+        //cout << "Drawing circle at (" << xCoordinates[i] << ", " << yCoordinates[i] << ") with radius " << radius << endl;
+        drawCircle(renderer, xCoordinates[i], yCoordinates[i], radius);
+    }
+
+    // Reset the render target to the default window
+    SDL_SetRenderTarget(renderer, nullptr);
+
+    // Variables for scrolling
+    int viewportX = 0;
+    int viewportY = 0;
+    const int SCROLL_SPEED = 10;
 
     bool quit = false;
-
-    
-
     SDL_Event e;
+
     while (!quit) {
         // Handle events on the queue
         while (SDL_PollEvent(&e) != 0) {
-            // User requests quit
             if (e.type == SDL_QUIT) {
                 quit = true;
+            } else if (e.type == SDL_KEYDOWN) {
+                // Adjust the viewport position based on arrow key input
+                switch (e.key.keysym.sym) {
+                    case SDLK_UP:
+                        viewportY -= SCROLL_SPEED;
+                        if (viewportY < 0) viewportY = 0;
+                        break;
+                    case SDLK_DOWN:
+                        viewportY += SCROLL_SPEED;
+                        if (viewportY > CANVAS_HEIGHT - SCREEN_HEIGHT) viewportY = CANVAS_HEIGHT - SCREEN_HEIGHT;
+                        break;
+                    case SDLK_LEFT:
+                        viewportX -= SCROLL_SPEED;
+                        if (viewportX < 0) viewportX = 0;
+                        break;
+                    case SDLK_RIGHT:
+                        viewportX += SCROLL_SPEED;
+                        if (viewportX > CANVAS_WIDTH - SCREEN_WIDTH) viewportX = CANVAS_WIDTH - SCREEN_WIDTH;
+                        break;
+                }
+            } else if (e.type == SDL_MOUSEWHEEL) {
+                // Adjust the viewport position based on mouse wheel input
+                viewportX += e.wheel.x * SCROLL_SPEED;
+                viewportY -= e.wheel.y * SCROLL_SPEED; // Typically, wheel.y is positive when scrolling up
+
+                if (viewportX < 0) viewportX = 0;
+                if (viewportX > CANVAS_WIDTH - SCREEN_WIDTH) viewportX = CANVAS_WIDTH - SCREEN_WIDTH;
+                if (viewportY < 0) viewportY = 0;
+                if (viewportY > CANVAS_HEIGHT - SCREEN_HEIGHT) viewportY = CANVAS_HEIGHT - SCREEN_HEIGHT;
             }
         }
 
-        SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+        // Clear the renderer
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
 
-        SDL_RenderClear(ren);
-        // Render a red filled quad
+        // Define the source rectangle (viewport) from the canvas texture
+        SDL_Rect srcRect = {viewportX, viewportY, SCREEN_WIDTH, SCREEN_HEIGHT};
 
-        SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+        // Define the destination rectangle on the window
+        SDL_Rect dstRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
 
-        for (int i = 0; i < xCoordinates.size(); ++i) {
-            int radius = 4;
-            //cout << "Drawing circle at (" << xCoordinates[i] << ", " << yCoordinates[i] << ") with radius " << radius << endl;
-            drawCircle(ren, xCoordinates[i] + 10, yCoordinates[i] + 10, radius);
-        }
+        // Render the visible part of the canvas texture to the window
+        SDL_RenderCopy(renderer, canvasTexture, &srcRect, &dstRect);
 
-        // Update screen
-        SDL_RenderPresent(ren);
+        // Update the screen
+        SDL_RenderPresent(renderer);
     }
+    
 
-    SDL_DestroyRenderer(ren);
-    SDL_DestroyWindow(win);
-
-    // Quit SDL subsystems
+    // Clean up
+    SDL_DestroyTexture(canvasTexture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     SDL_Quit();
 
-    
     file.close();
 
     return 0;
