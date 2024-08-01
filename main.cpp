@@ -439,19 +439,25 @@ int main() {
         uint32_t locaGlyphOffset;
         file.read(reinterpret_cast<char*>(&locaGlyphOffset), sizeof(uint32_t));
         locaGlyphOffset = convertEndian32(locaGlyphOffset);
-        cout << hex << locaGlyphOffset << endl;
+        //cout << hex << locaGlyphOffset << endl;
         locaOffsets[i] = locaGlyphOffset;
     }
     cout << "loca offset of B: " << hex << locaOffsets[idontknow] << endl;
 
+    cout << glyf << endl;
     file.seekg(glyf, ios::beg);
     file.seekg(locaOffsets[idontknow], ios::cur);
     cout << file.tellg() << endl;
+    cout << "locaOffsets[0]: " << locaOffsets[0];
 
     uint16_t numberOfContours;
     file.read(reinterpret_cast<char*>(&numberOfContours), sizeof(uint16_t));
     numberOfContours = convertEndian16(numberOfContours);
     cout << "numberOfContours: " << numberOfContours << endl;
+    uint16_t xMin_here;
+    file.read(reinterpret_cast<char*>(&xMin_here), sizeof(uint16_t));
+    xMin_here = convertEndian16(xMin_here);
+    cout << "xMin: " << dec << xMin_here << endl;
 
 
 /*
