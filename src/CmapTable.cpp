@@ -52,7 +52,7 @@ void CmapSubtable::parseFormat12(const std::vector<char>& data, uint16_t offset)
     std::cout << format12Data.startGlyphCodes[3] << std::endl;
 }
 
-uint16_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
+uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
     if (format == 4) {
         for (int i = 0; i < format4Data.endCodes.size(); ++i) {
             if (unicodeValue <= format4Data.endCodes[i]) {

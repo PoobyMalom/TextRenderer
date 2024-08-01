@@ -7,7 +7,7 @@ public:
 
     CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t format, const std::vector<char>& data, uint16_t offset);
 
-    uint16_t getGlyphIndex(uint32_t unicodeValue) const;
+    uint32_t getGlyphIndex(uint32_t unicodeValue) const;
     uint16_t getPlatformID() const { return platformID; }
     uint16_t getEncodingID() const { return encodingID; }
     uint16_t getFormat() const { return format; }
