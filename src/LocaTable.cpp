@@ -1,6 +1,6 @@
 #include "LocaTable.h"
-#include <stdexcept>
 #include <cstring>
+#include <arpa/inet.h> // For ntohl and ntohs
 
 LocaTable LocaTable::parse(bool is32bit, const std::vector<char>& data, size_t locaOffset, size_t numGlyphs) {
     LocaTable locaTable;

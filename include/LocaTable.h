@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include <vector>
+#include <stdexcept>
 
 class LocaTable {
 public:
@@ -10,10 +10,7 @@ public:
     const std::vector<uint16_t>& getOffsets16() const;
 
 private:
-    LocaTable() = default;
-
+    bool is32bitFormat;
     std::vector<uint32_t> offsets32;
     std::vector<uint16_t> offsets16;
-    bool is32bitFormat;
 };
-
