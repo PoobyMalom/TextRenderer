@@ -15,8 +15,19 @@
 #include "MaxpTable.h"
 #include "CmapTable.h"
 #include "LocaTable.h"
+#include "GlyphTable.h"
 using namespace std;
 
+//thanks chatGPT
+void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
+    for (int w = -radius; w <= radius; w++) {
+        for (int h = -radius; h <= radius; h++) {
+            if (w*w + h*h <= radius*radius) {
+                SDL_RenderDrawPoint(renderer, centerX + w, centerY + h);
+            }
+        }
+    }
+}
 
 uint32_t convertEndian32(uint32_t value) {
     return ((value >> 24) & 0x000000FF) |
@@ -113,6 +124,10 @@ int main() {
         }
     }
 
+    /*for (uint16_t loca : locas) {
+        cout << "loca: " << loca << endl;
+    }*/
+
     cout << "Loca Table Offset 0: " << locas[0] << endl;
     cout << "Loca Table Offset 1: " << locas[1] << endl;
     cout << "Loca Table Offset 2: " << locas[2] << endl;
@@ -129,9 +144,119 @@ int main() {
     uint16_t encodingID = 4;
     uint16_t glyphIndex = cmapTable.getGlyphIndex(unicodeValue, platformID, encodingID);
 
-    cout << "Glyph index for 'B': " << glyphIndex << endl;
+    cout << "glyphIndex: " << glyphIndex << endl;
+    cout << "B glyf offset: " << locas[glyphIndex] << endl;
 
-    file.seekg(glyfOffset, ios::beg);
-    file.seekg(locas[glyphIndex], ios::cur);
+    Glyph glyph = Glyph::parseGlyph(buffer, glyfOffset + locas[glyphIndex]);
 
+    cout << "number of contours: " << glyph.getNumberOfContours() << endl;
+    cout << "xMin: " << dec << glyph.getXMin() << endl;
+    cout << "yMin: " << glyph.getYMin() << endl;
+    cout << "xMax: " << glyph.getXMax() << endl;
+    cout << "yMax: " << glyph.getYMax() << endl;
+
+    vector<uint8_t> flags = glyph.getFlags();
+    for (uint8_t flag : flags) {
+        bitset<8> bits(flag);
+        cout << bits << endl;
+    }
+    cout << "length of flags: " << flags.size() << endl;
+
+    vector<uint16_t> xCoordinates = glyph.getXCoordinates();
+    vector<uint16_t> yCoordinates = glyph.getYCoordinates();
+    for (int i = 0; i < flags.size(); ++i) {
+        cout << "x: " << xCoordinates[i] << " | y: " << yCoordinates[i] << endl;
+    }
+
+    /*
+    uint16_t numberOfContours;
+    file.read(reinterpret_cast<char*>(&numberOfContours), sizeof(uint16_t));
+    numberOfContours = convertEndian16(numberOfContours);
+    cout << "numberOfContours: " << numberOfContours << endl;
+
+    int16_t xMin;
+    int16_t yMin;
+    int16_t xMax;
+    int16_t yMax;
+
+    file.read(reinterpret_cast<char*>(&xMin), sizeof(int16_t));
+    file.read(reinterpret_cast<char*>(&yMin), sizeof(int16_t));
+    file.read(reinterpret_cast<char*>(&xMax), sizeof(int16_t));
+    file.read(reinterpret_cast<char*>(&yMax), sizeof(int16_t));
+
+    xMin = convertEndian16(xMin);
+    yMin = convertEndian16(yMin);
+    xMax = convertEndian16(xMax);
+    yMax = convertEndian16(yMax);
+
+    cout << "xMin: " << dec << xMin << endl;
+    cout << "yMin: " << yMin << endl;
+    cout << "xMax: " << xMax << endl;
+    cout << "yMax: " << yMax << endl;
+    */
+
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+        cerr << "SDL initialization failed: " << SDL_GetError() << endl;
+        return 1;
+    }
+
+    // Create SDL window and renderer
+    const int winWidth = 1000;
+    const int winHeight = 1000;
+    SDL_Window *win = SDL_CreateWindow("SDL Window", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, winWidth, winHeight, 0);
+    if (win == nullptr) {
+        cerr << "Failed to create SDL window: " << SDL_GetError() << endl;
+        SDL_Quit();
+        return 1;
+    }
+
+    SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (ren == nullptr) {
+        cerr << "Failed to create SDL renderer: " << SDL_GetError() << endl;
+        SDL_DestroyWindow(win);
+        SDL_Quit();
+        return 1;
+    }
+
+    bool quit = false;
+
+    
+
+    SDL_Event e;
+    while (!quit) {
+        // Handle events on the queue
+        while (SDL_PollEvent(&e) != 0) {
+            // User requests quit
+            if (e.type == SDL_QUIT) {
+                quit = true;
+            }
+        }
+
+        SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+
+        SDL_RenderClear(ren);
+        // Render a red filled quad
+
+        SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
+
+        for (int i = 0; i < xCoordinates.size(); ++i) {
+            int radius = 4;
+            //cout << "Drawing circle at (" << xCoordinates[i] << ", " << yCoordinates[i] << ") with radius " << radius << endl;
+            drawCircle(ren, xCoordinates[i] + 10, yCoordinates[i] + 10, radius);
+        }
+
+        // Update screen
+        SDL_RenderPresent(ren);
+    }
+
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+
+    // Quit SDL subsystems
+    SDL_Quit();
+
+    
+    file.close();
+
+    return 0;
 }
