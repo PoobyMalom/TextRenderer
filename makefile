@@ -22,17 +22,6 @@ $(TEST_TARGET): $(TEST_OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -Iinclude -c $< -o $@
 
-# Explicit rules for src directory
-src/MovablePoint.o: src/MovablePoint.cpp include/MovablePoint.h
-src/Helpers.o: src/Helpers.cpp include/Helpers.h
-src/TTFHeader.o: src/TTFHeader.cpp include/TTFHeader.h
-src/TTFTable.o: src/TTFTable.cpp include/TTFTable.h
-src/HeadTable.o: src/HeadTable.cpp include/HeadTable.h
-src/MaxpTable.o: src/MaxpTable.cpp include/MaxpTable.h
-src/LocaTable.o: src/LocaTable.cpp include/LocaTable.h
-src/CmapTable.o: src/CmapTable.cpp include/CmapTable.h
-src/GlyphTable.o: src/GlyphTable.cpp include/GlyphTable.h
-
 clean:
 	rm -f $(TARGET) $(TEST_TARGET) $(OBJS) $(TEST_OBJS)
 
