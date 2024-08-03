@@ -30,7 +30,8 @@ public:
     std::vector<int16_t> getXCoordinates() const;
     std::vector<int16_t> getYCoordinates() const;
 
-    static Glyph parseGlyph(const std::vector<char>& data, uint16_t glyphOffset);
+    static Glyph parseGlyph(const std::vector<char>& data, uint32_t glyphOffset);
+    void addPointsBetween();
 
 private:
     int16_t numberOfContours;

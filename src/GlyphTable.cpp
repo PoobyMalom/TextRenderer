@@ -71,8 +71,8 @@ vector<int16_t> Glyph::getYCoordinates() const {
     return yCoordinates;
 }
 
-Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
-    uint16_t pos = offset;
+Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
+    uint32_t pos = offset;
     //std::cout << "offset in function: " << pos << std::endl;
     int16_t numberOfContours = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
     //std::cout << "number of contours in method: " << numberOfContours << std::endl;
@@ -136,11 +136,10 @@ Glyph Glyph::parseGlyph(const vector<char>& data, uint16_t offset) {
     int16_t currentY = 0;
     for (int i = 0; i < totalPoints; ++i) {
         if (flags[i] & 4) { // Short vector
+            uint8_t delta = static_cast<uint8_t>(data[pos++]);
             if (flags[i] & 32) { // Short vector with positive values
-                uint8_t delta = static_cast<uint8_t>(data[pos++]);
                 currentY += delta;
             } else { // Short vector with negative values
-                int8_t delta = static_cast<int8_t>(data[pos++]);
                 currentY -= delta;
             }
         } else if (!(flags[i] & 32)) { // Long vector
@@ -168,3 +167,89 @@ uint16_t Glyph::convertEndian16(uint16_t value) {
            ((value << 8)  & 0xFF00);
 }
 
+void Glyph::addPointsBetween() {
+    vector<int16_t> newXCoordinates;
+    vector<int16_t> newYCoordinates;
+    vector<uint8_t> newFlags;
+    vector<uint16_t> newEndPtsOfContours;
+
+    size_t n = xCoordinates.size();
+    size_t contourIndex = 0;
+    size_t contourStartIndex = 0;
+
+    for (size_t i = 0; i < n; ++i) {
+        // Add the current point
+        newXCoordinates.push_back(xCoordinates[i]);
+        newYCoordinates.push_back(yCoordinates[i]);
+        newFlags.push_back(flags[i]);
+
+        // Check if the next point is part of the same contour or a new contour
+        if (contourIndex < endPtsOfContours.size() && i == endPtsOfContours[contourIndex]) {
+            // Handle wrap-around case for the end of the contour
+            size_t firstPointIndex = contourStartIndex;
+            size_t lastPointIndex = i;
+
+            bool isLastPointOnCurve = (flags[lastPointIndex] & 1);
+            bool isFirstPointOnCurve = (flags[firstPointIndex] & 1);
+
+            if (!isLastPointOnCurve && !isFirstPointOnCurve) {
+                // Add an on-curve point between two off-curve points
+                int16_t midX = (xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2;
+                int16_t midY = (yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2;
+
+                newXCoordinates.push_back(midX);
+                newYCoordinates.push_back(midY);
+                newFlags.push_back(1); // On-curve point
+            } else if (isLastPointOnCurve && isFirstPointOnCurve) {
+                // Add an off-curve point between two on-curve points
+                int16_t midX = (xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2;
+                int16_t midY = (yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2;
+
+                newXCoordinates.push_back(midX);
+                newYCoordinates.push_back(midY);
+                newFlags.push_back(0); // Off-curve point
+            }
+
+            // Move to the next contour
+            newEndPtsOfContours.push_back(newXCoordinates.size() - 1);
+            contourIndex++;
+            contourStartIndex = i + 1;
+        } else {
+            // Determine the index of the next point (wrap around within the same contour)
+            size_t nextIndex = (i + 1) % n;
+
+            if (contourIndex < endPtsOfContours.size() && nextIndex > endPtsOfContours[contourIndex]) {
+                nextIndex = contourStartIndex;
+            }
+
+            // Determine if current and next points are on-curve or off-curve
+            bool isCurrentOnCurve = (flags[i] & 1);
+            bool isNextOnCurve = (flags[nextIndex] & 1);
+
+            // Add points between current and next points
+            if (!isCurrentOnCurve && !isNextOnCurve) {
+                // Add an on-curve point between two off-curve points
+                int16_t midX = (xCoordinates[i] + xCoordinates[nextIndex]) / 2;
+                int16_t midY = (yCoordinates[i] + yCoordinates[nextIndex]) / 2;
+
+                newXCoordinates.push_back(midX);
+                newYCoordinates.push_back(midY);
+                newFlags.push_back(1); // On-curve point
+            } else if (isCurrentOnCurve && isNextOnCurve) {
+                // Add an off-curve point between two on-curve points
+                int16_t midX = (xCoordinates[i] + xCoordinates[nextIndex]) / 2;
+                int16_t midY = (yCoordinates[i] + yCoordinates[nextIndex]) / 2;
+
+                newXCoordinates.push_back(midX);
+                newYCoordinates.push_back(midY);
+                newFlags.push_back(0); // Off-curve point
+            }
+        }
+    }
+
+    // Set updated values
+    xCoordinates = newXCoordinates;
+    yCoordinates = newYCoordinates;
+    flags = newFlags;
+    endPtsOfContours = newEndPtsOfContours;
+}

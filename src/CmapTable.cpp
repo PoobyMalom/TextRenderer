@@ -109,7 +109,7 @@ CmapTable CmapTable::parse(const std::vector<char>& data, uint32_t offset) {
     return CmapTable(data, offset);
 }
 
-uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue, uint16_t platformID, uint16_t encodingID) const {
+uint16_t CmapTable::getGlyphIndex(u_int32_t unicodeValue, uint16_t platformID, uint16_t encodingID) const {
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == platformID && subtable.getEncodingID() == encodingID) {
             return subtable.getGlyphIndex(unicodeValue);
