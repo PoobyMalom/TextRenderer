@@ -1,5 +1,6 @@
 #include "TTFFile.h"
 #include <vector>
+#include <iostream>
 
 TTFFile::TTFFile(
     TTFHeader header,
@@ -73,11 +74,11 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     TTFHeader header = TTFHeader::parse(data);
     std::vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());
 
-    uint16_t cmapOffset;
-    uint16_t glyfOffset;
-    uint16_t headOffset;
-    uint16_t locaOffset;
-    uint16_t maxpOffset;
+    uint32_t cmapOffset;
+    uint32_t glyfOffset;
+    uint32_t headOffset;
+    uint32_t locaOffset;
+    uint32_t maxpOffset;
 
     for (int i = 0; i < tables.size(); ++i) {
         TTFTable* tempTable = tables[i];
@@ -129,8 +130,10 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
 
 Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, char letter) {
     uint32_t unicodeValue = static_cast<uint32_t>(letter);
+    //std::cout << letter << " unicode: " << unicodeValue << std::endl;
     uint16_t glyphIndex = cmapTable.getGlyphIndex(unicodeValue, platformID, endcodingID);
-
+    //std::cout << "glyph index: " << glyphIndex << std::endl;
+    //std::cout << "loca index: " << locas[glyphIndex] << std::endl;
     return Glyph::parseGlyph(data, glyfOffset + locas[glyphIndex]);
 }
 
@@ -138,6 +141,7 @@ std::vector<Glyph> TTFFile::parseGlyphs(const std::vector<char>& data, uint16_t 
     int numLetters = letters.size();
     std::vector<Glyph> glyphs;
     for (int i = 0; i < numLetters; ++i) {
+        //std::cout << "glyph: " << letters[i] << std::endl;
         glyphs.push_back(parseGlyph(data, platformID, encodingID, letters[i]));
     }
     return glyphs;
