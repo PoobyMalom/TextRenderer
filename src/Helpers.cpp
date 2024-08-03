@@ -4,45 +4,45 @@
 #include <iostream>
 #include <vector>
 
-void DrawLine(SDL_Renderer* renderer, const MovablePoint& point1, const MovablePoint& point2) {
-    SDL_RenderDrawLine(renderer, static_cast<int>(point1.getX()), static_cast<int>(point1.getY()), 
-                       static_cast<int>(point2.getX()), static_cast<int>(point2.getY()));
-}
+void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2) {
+    // Check if the control point is collinear with the start and end points
+    auto isCollinear = [](const SDL_Point& p0, const SDL_Point& p1, const SDL_Point& p2) {
+        return std::abs((p2.y - p0.y) * (p1.x - p0.x) - (p1.y - p0.y) * (p2.x - p0.x)) < 1e-5;
+    };
 
-void MovingPoint(SDL_Renderer* renderer, const MovablePoint& point1, const MovablePoint& point2, float t) {
-    float x = (1 - t) * point1.getX() + t * point2.getX();
-    float y = (1 - t) * point1.getY() + t * point2.getY();
-    SDL_Rect rect = { static_cast<int>(x), static_cast<int>(y), 10, 10 };
-    SDL_RenderDrawRect(renderer, &rect);
-}
-
-void DrawBezier(SDL_Renderer* renderer, const MovablePoint& point1, const MovablePoint& controlPoint, const MovablePoint& point2) {
-    float t = 0.0;
-    for (int i = 0; i < 10000; i++) {
-        float x = ((1 - t)*(1-t)) * point1.getX() + 2 * (1 - t) * t * controlPoint.getX() + (t*t) * point2.getX();
-        float y = ((1 - t)*(1-t)) * point1.getY() + 2 * (1 - t) * t * controlPoint.getY() + (t*t) * point2.getY();
-        SDL_Point point = { static_cast<int>(x), static_cast<int>(y) };
-        SDL_RenderDrawPoint(renderer, point.x, point.y);
-        t += 0.0001;
-    } 
-}
-
-std::vector<char> readTTFFile(const std::string& filePath) {
-    std::ifstream file(filePath, std::ios::binary | std::ios::ate);
-    if (!file) {
-        throw std::runtime_error("Failed to open file: " + filePath);
+    if (isCollinear(point1, controlPoint, point2)) {
+        // Draw a straight line if the points are collinear
+        SDL_RenderDrawLine(renderer, point1.x, point1.y, point2.x, point2.y);
+        return;
     }
-   std::ifstream::pos_type pos = file.tellg();
-    std::vector<char> buffer(pos);
-    file.seekg(0, std::ios::beg);
-    file.read(buffer.data(), pos);
-    file.close();
-    return buffer;
-}
 
-// Helper function to read a big-endian 32-bit integer
-uint32_t readUint32(std::ifstream& file) {
-    uint32_t value;
-    file.read(reinterpret_cast<char*>(&value), sizeof(value));
-    return __builtin_bswap32(value); // Convert from big-endian to host-endian
+    int numPoints = 100; // Increase the number of points for a smoother curve
+    float t = 0.0;
+    float step = 1.0f / numPoints;
+    std::vector<SDL_Point> points;
+
+    for (int i = 0; i <= numPoints; i++) {
+        float x = ((1 - t) * (1 - t)) * point1.x + 2 * (1 - t) * t * controlPoint.x + (t * t) * point2.x;
+        float y = ((1 - t) * (1 - t)) * point1.y + 2 * (1 - t) * t * controlPoint.y + (t * t) * point2.y;
+        SDL_Point point = { static_cast<int>(x), static_cast<int>(y) };
+        points.push_back(point);
+        t += step;
+    }
+
+    // Line simplification: remove consecutive points that are too close to each other
+    std::vector<SDL_Point> simplifiedPoints;
+    const int distanceThreshold = 1; // Distance threshold for simplification
+    simplifiedPoints.push_back(points.front());
+
+    for (size_t i = 1; i < points.size(); ++i) {
+        if (std::abs(points[i].x - simplifiedPoints.back().x) > distanceThreshold ||
+            std::abs(points[i].y - simplifiedPoints.back().y) > distanceThreshold) {
+            simplifiedPoints.push_back(points[i]);
+        }
+    }
+
+    // Draw the simplified points
+    for (size_t i = 1; i < simplifiedPoints.size(); ++i) {
+        SDL_RenderDrawLine(renderer, simplifiedPoints[i - 1].x, simplifiedPoints[i - 1].y, simplifiedPoints[i].x, simplifiedPoints[i].y);
+    }
 }
