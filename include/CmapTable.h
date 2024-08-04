@@ -5,7 +5,7 @@
 class CmapSubtable {
 public: 
 
-    CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t format, const std::vector<char>& data, uint16_t offset);
+    CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t format, const std::vector<char>& data, uint32_t offset);
 
     uint32_t getGlyphIndex(uint32_t unicodeValue) const;
     uint16_t getPlatformID() const { return platformID; }
@@ -19,7 +19,7 @@ private:
     uint16_t format;
 
     void parseFormat4(const std::vector<char>& data, uint16_t offset);
-    void parseFormat12(const std::vector<char>& data, uint16_t offset);
+    void parseFormat12(const std::vector<char>& data, uint32_t offset);
 
     struct Format4Data {
         uint16_t segCountX2;
