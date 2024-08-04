@@ -17,9 +17,10 @@
 #include "LocaTable.h"
 #include "GlyphTable.h"
 #include "TTFFile.h"
+#include "Helpers.h"
 using namespace std;
 
-const double SCALINGFACTOR = 0.05;
+const double SCALINGFACTOR = 0.08;
 
 const int ADVANCEWIDTH = 600 * SCALINGFACTOR;
 const int ADVANCEHEIGHT = 1320 * SCALINGFACTOR;
@@ -31,7 +32,6 @@ const int SCREEN_HEIGHT = 1320;
 const int CANVAS_WIDTH = 10000;
 const int CANVAS_HEIGHT = 10000;
 
-//thanks chatGPT
 void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
     for (int w = -radius; w <= radius; w++) {
         for (int h = -radius; h <= radius; h++) {
@@ -54,7 +54,6 @@ uint16_t convertEndian16(uint16_t value) {
            ((value << 8)  & 0xFF00);
 }
 
-
 int main() {
     // Open the file in binary mode
     ifstream file("src/fonts/JetBrainsMono-Bold.ttf", ios::binary);
@@ -63,7 +62,7 @@ int main() {
     cout << "File size: " << fileSize << " bytes" << endl;
     file.seekg(0, ios::beg);
 
-    if (sizeof(file) < sizeof(uint32_t)) {
+    if (fileSize < sizeof(uint32_t)) {
         cerr << "File is too small to read a uint32_t value." << endl;
         return 1;
     }
@@ -76,13 +75,26 @@ int main() {
     uint16_t platformID = 0;
     uint16_t encodingID = 4;
 
-    string alph = "Toby is a bastard child? japer is cool though!!";
-    cout << static_cast<int>(alph[0]) << endl;
+    string alph1 = 
+        "The quick brown fox jumps over the lazy dog. 1234567890!@#$%^&*()_+-=[]{}|;':\",./<>?"
+        "\"Hello, World!\" exclaimed the programmer, as he debugged the code at 3:00 AM."
+        "Café prices increased by 5% due to inflation; isn't that surprising?"
+        "Über-cool musicians play jazz-fusion on their saxophones and xylophones."
+        "Visiting the Louvre in Paris, we admired Da Vinci's Mona Lisa—such an iconic piece!"
+        "El Niño affects the weather patterns globally; it's a fascinating phenomenon."
+        "Smörgåsbord is a type of Scandinavian meal served buffet-style, with various hot and cold dishes.";
 
-    vector<Glyph> glyphs = ttfFile.parseGlyphs(buffer, platformID, encodingID, alph);
+    string alph = "i";
 
+    vector<Glyph> glyphs;
+    try {
+        glyphs = ttfFile.parseGlyphs(buffer, platformID, encodingID, alph);
+    } catch (const std::exception& e) {
+        cerr << "Error parsing glyphs: " << e.what() << endl;
+        return 1;
+    }
 
-//-------------------------------------------------------------------------
+    cout << "number of glyphs: " << glyphs.size() << endl;
 
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         cerr << "SDL initialization failed: " << SDL_GetError() << endl;
@@ -90,7 +102,7 @@ int main() {
     }
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+        cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << endl;
         return -1;
     }
 
@@ -102,14 +114,14 @@ int main() {
                                           SCREEN_HEIGHT,
                                           SDL_WINDOW_SHOWN);
     if (window == nullptr) {
-        std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << endl;
         return -1;
     }
 
     // Create renderer for window
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (renderer == nullptr) {
-        std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << endl;
         SDL_DestroyWindow(window);
         SDL_Quit();
         return -1;
@@ -122,7 +134,7 @@ int main() {
                                                    CANVAS_WIDTH,
                                                    CANVAS_HEIGHT);
     if (canvasTexture == nullptr) {
-        std::cerr << "Texture could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        cerr << "Texture could not be created! SDL_Error: " << SDL_GetError() << endl;
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -143,18 +155,26 @@ int main() {
     int currentYOffset = 0;
     int radius = 4;
 
-    for (int i = 0; i < alph.size(); ++i) {
+    for (size_t i = 0; i < glyphs.size(); ++i) {
         if (currentXOffset >= CANVAS_WIDTH - ADVANCEWIDTH) {
             currentXOffset = 0;
             currentYOffset += ADVANCEHEIGHT;
         }
-        if (glyphs[i].getNumberOfContours() >= 0) {
-            Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, SCALINGFACTOR, SCREEN_HEIGHT);
-        } else {
-            cout << "glyph " << i << " is a compound glyph";
+
+        try {
+            if (glyphs[i].getNumberOfContours() >= 0) {
+                Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, SCALINGFACTOR, SCREEN_HEIGHT);
+            } else {
+                cout << "glyph " << i << " has " << glyphs[i].getNumberOfContours() << " contours" << endl;
+                cout << "glyph " << i << " is a compound glyph" << endl;
+            }
+        } catch (const std::exception& e) {
+            cerr << "Error drawing glyph " << i << ": " << e.what() << endl;
         }
+
         currentXOffset += ADVANCEWIDTH;
     }
+
     // Reset the render target to the default window
     SDL_SetRenderTarget(renderer, nullptr);
 
@@ -219,7 +239,6 @@ int main() {
         // Update the screen
         SDL_RenderPresent(renderer);
     }
-
 
     // Clean up
     SDL_DestroyTexture(canvasTexture);
