@@ -16,7 +16,7 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
         return;
     }
 
-    int numPoints = 100; // Increase the number of points for a smoother curve
+    int numPoints = 28; // Increase the number of points for a smoother curve
     float t = 0.0;
     float step = 1.0f / numPoints;
     std::vector<SDL_Point> points;
@@ -45,4 +45,38 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     for (size_t i = 1; i < simplifiedPoints.size(); ++i) {
         SDL_RenderDrawLine(renderer, simplifiedPoints[i - 1].x, simplifiedPoints[i - 1].y, simplifiedPoints[i].x, simplifiedPoints[i].y);
     }
+}
+
+std::vector<uint32_t> stringToUnicode(const std::string& input) {
+    std::vector<uint32_t> unicodePoints;
+    size_t length = input.size();
+
+    // Iterate over the string
+    for (size_t i = 0; i < length;) {
+        std::cout << "letter " << input[i] << std::endl;
+        uint32_t codePoint = 0;
+        unsigned char c = input[i];
+
+        // Determine the number of bytes in the UTF-8 character
+        if (c <= 0x7F) { // 1-byte character (ASCII)
+            codePoint = c;
+            i += 1;
+        } else if (c <= 0xDF) { // 2-byte character
+            codePoint = ((c & 0x1F) << 6) | (input[i + 1] & 0x3F);
+            i += 2;
+        } else if (c <= 0xEF) { // 3-byte character
+            codePoint = ((c & 0x0F) << 12) | ((input[i + 1] & 0x3F) << 6) | (input[i + 2] & 0x3F);
+            i += 3;
+        } else if (c <= 0xF7) { // 4-byte character
+            codePoint = ((c & 0x07) << 18) | ((input[i + 1] & 0x3F) << 12) | ((input[i + 2] & 0x3F) << 6) | (input[i + 3] & 0x3F);
+            i += 4;
+        } else {
+            // Invalid UTF-8 byte sequence, handle error if needed
+            throw std::runtime_error("Invalid UTF-8 sequence");
+        }
+
+        unicodePoints.push_back(codePoint);
+    }
+
+    return unicodePoints;
 }

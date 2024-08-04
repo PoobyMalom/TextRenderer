@@ -142,11 +142,30 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t nu
     return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates);
 }
 
-Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
+Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
+    vector<uint16_t> flags;
+    vector<uint16_t> glyphIndexs;
+    bool readComponent = 1;
+    while (readComponent) {
+        uint16_t flag = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+        pos += 2;
+        uint16_t glyphIndex = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+        pos += 2;
+        if (flag & !(1 << 5)) {
+            readComponent = 0;
+        } else {
+            pos += 8;
+        }
+        flags.push_back(flag);
+        glyphIndexs.push_back(glyphIndex);
+    }
+    cout << "size of flags: " << flags.size();
+}
+
+    Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
     uint32_t pos = offset;
-    //std::cout << "offset in function: " << pos << std::endl;
     int16_t numberOfContours = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    std::cout << "number of contours in method: " << numberOfContours << std::endl;
+    cout << "num contours: " << numberOfContours << endl;
     pos += 2;
     int16_t xMin = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
     pos += 2;
@@ -161,6 +180,7 @@ Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
         return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
     } else {
         TTFHeader header = TTFHeader::parse(data);
+        parseCompoundGlyph(data, pos, xMin, yMin, xMax, yMax);
         std::vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());
         for (TTFTable* table : tables) {
             if (table->getTag() == "glyf") {
@@ -280,10 +300,6 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
     int currentContour = 0;
     int contourStartIndex = 0;
 
-    for (uint16_t endpoint : endpoints) {
-        cout << "endpoints: " << endpoint << endl;
-    }
-
     vector<int16_t> xCoordinates = glyph.getXCoordinates();
     vector<int16_t> yCoordinates = glyph.getYCoordinates();
 
@@ -305,19 +321,11 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
             SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
             //drawCircle(renderer, xCoordinates[j] + currentXOffset, SCREEN_HEIGHT - yCoordinates[j] + currentYOffset, 2);
         }
-        cout << "point: " << j << " in contour: " << currentContour << " | x: " << xCoordinates[j] << ", y: " << yCoordinates[j] << endl;
-
-
-        //if (flag & 1) {
-        //    SDL_Point point1 = 
-        //}
-
         if (flag & 1) { // If the current point is an on-curve point
             SDL_Point point1 = { static_cast<int>(xCoordinates[j] * scalingFactor + xOffset), static_cast<int>(screenHeight - yCoordinates[j] * scalingFactor + yOffset)};
             SDL_Point controlPoint;
             SDL_Point point2;
             if (j !=  endpoints[currentContour] - 1) {
-                cout << j << endl;
                 controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
                 controlPoint.y = static_cast<int>(screenHeight - yCoordinates[j + 1] * scalingFactor + yOffset);
                 point2.x = static_cast<int>(xCoordinates[j + 2] * scalingFactor + xOffset);
@@ -328,9 +336,7 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
                 point2.x = static_cast<int>(xCoordinates[contourStartIndex] * scalingFactor + xOffset );
                 point2.y = static_cast<int>(screenHeight - (yCoordinates[contourStartIndex] * scalingFactor) + yOffset );
             }
-            cout << "contour " << currentContour << " start index: " << contourStartIndex << endl;
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-
             DrawBezier(renderer, point1, controlPoint, point2);
         }
     }
