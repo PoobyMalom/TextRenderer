@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE
+CXXFLAGS = -std=c++11 -Wall -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE -g
 LDFLAGS = -L/opt/homebrew/lib -lSDL2
 
 TARGET = main
