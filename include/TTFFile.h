@@ -39,7 +39,7 @@ public:
     uint16_t getMaxpOffset() const;
 
     static TTFFile parse(const std::vector<char>& data);
-    Glyph parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, char letter);
+    Glyph parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, uint32_t letter);
     std::vector<Glyph> parseGlyphs(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, std::string letters);
 
 private:

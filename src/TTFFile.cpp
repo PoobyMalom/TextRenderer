@@ -1,4 +1,5 @@
 #include "TTFFile.h"
+#include "Helpers.h"
 #include <vector>
 #include <iostream>
 
@@ -128,21 +129,48 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     return TTFFile(header, tables, locas, headTable, cmapTable, maxpTable, cmapOffset, glyfOffset, headOffset, locaOffset, maxpOffset);
 }
 
-Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, char letter) {
-    uint32_t unicodeValue = static_cast<uint32_t>(letter);
-    //std::cout << letter << " unicode: " << unicodeValue << std::endl;
-    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicodeValue, platformID, endcodingID);
-    //std::cout << "glyph index: " << glyphIndex << std::endl;
-    //std::cout << "loca index: " << locas[glyphIndex] << std::endl;
-    return Glyph::parseGlyph(data, glyfOffset + locas[glyphIndex]);
+Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t encodingID, uint32_t unicode) {
+    uint32_t unicodeValue = unicode;
+    if (unicodeValue == 32) {
+        return Glyph {0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}};
+    }
+    //std::cout << "Unicode: " << unicodeValue << std::endl;
+
+    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicodeValue, platformID, encodingID);
+    //std::cout << "Glyph Index: " << glyphIndex << std::endl;
+
+    if (glyphIndex >= locas.size()) {
+        std::cerr << "Invalid glyph index: " << glyphIndex << std::endl;
+        throw std::out_of_range("Glyph index out of range");
+    }
+
+    uint32_t locaOffset = locas[glyphIndex];
+    //std::cout << "Loca Offset: " << locaOffset << std::endl;
+
+    if (locaOffset >= data.size()) {
+        std::cerr << "Invalid loca offset: " << locaOffset << std::endl;
+        throw std::out_of_range("Loca offset out of range");
+    }
+
+    uint32_t glyphOffset = glyfOffset + locaOffset;
+    //std::cout << "Glyph Offset: " << glyphOffset << std::endl;
+
+    if (glyphOffset >= data.size()) {
+        std::cerr << "Invalid glyph offset: " << glyphOffset << std::endl;
+        throw std::out_of_range("Glyph offset out of range");
+    }
+
+    return Glyph::parseGlyph(data, glyphOffset);
 }
 
 std::vector<Glyph> TTFFile::parseGlyphs(const std::vector<char>& data, uint16_t platformID, uint16_t encodingID, std::string letters) {
-    int numLetters = letters.size();
+    std::vector<uint32_t> chars = stringToUnicode(letters);
+    std::cout << "num chars: " << chars.size() << std::endl;
+    int numLetters = chars.size();
     std::vector<Glyph> glyphs;
     for (int i = 0; i < numLetters; ++i) {
-        //std::cout << "glyph: " << letters[i] << std::endl;
-        glyphs.push_back(parseGlyph(data, platformID, encodingID, letters[i]));
+        std::cout << "glyph " << i << ": " << letters[i] << std::endl;
+        glyphs.push_back(parseGlyph(data, platformID, encodingID, chars[i]));
     }
     return glyphs;
 }
