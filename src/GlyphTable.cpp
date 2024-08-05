@@ -1,6 +1,7 @@
 #include "GlyphTable.h"
 #include "Helpers.h"
 #include "TTFHeader.h"
+#include "TTFFile.h"
 #include <vector>
 #include <iostream>
 using namespace std;
@@ -143,29 +144,159 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t nu
 }
 
 Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
-    vector<uint16_t> flags;
+    bool keepGoing = true;
     vector<uint16_t> glyphIndexs;
-    bool readComponent = 1;
-    while (readComponent) {
+    vector<int16_t> argument1s;
+    vector<int16_t> argument2s;
+    vector<int16_t> as;
+    vector<int16_t> bs;
+    vector<int16_t> cs;
+    vector<int16_t> ds;
+    vector<int32_t> ms;
+    vector<int32_t> ns;
+
+    while (keepGoing) {
         uint16_t flag = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
         pos += 2;
-        uint16_t glyphIndex = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        pos += 2;
-        if (flag & !(1 << 5)) {
-            readComponent = 0;
-        } else {
-            pos += 8;
+        bool isWord = flag & 1;
+        bool isXY = flag >> 1 & 1;
+        bool moreGlyphs = flag >> 5 & 1;
+        if (!moreGlyphs) {
+            keepGoing = false;
         }
-        flags.push_back(flag);
+        bool weHaveScale = flag >> 3 & 1;
+        bool weHaveXYScale = flag >> 6 & 1;
+        bool weHaveTwoByTwo = flag >> 7 & 1;
+        uint16_t glyphIndex = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
         glyphIndexs.push_back(glyphIndex);
+        pos += 2;
+        int16_t argument1;
+        int16_t argument2;
+        if (isWord) {
+            if (isXY) {
+                argument1 = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+                pos += 2;
+                argument2 = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+                pos += 2;
+            } else {
+                argument1 = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+                pos += 2;
+                argument2 = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+                pos += 2;
+            }
+        } else {
+            if (isXY) {
+                argument1 = static_cast<int16_t>(*reinterpret_cast<const int8_t*>(&data[pos]));
+                pos += 1;
+                argument2 = static_cast<int16_t>(*reinterpret_cast<const int8_t*>(&data[pos]));
+                pos += 1;
+            } else {
+                argument1 = static_cast<int16_t>(*reinterpret_cast<const uint8_t*>(&data[pos]));
+                pos += 1;
+                argument2 = static_cast<int16_t>(*reinterpret_cast<const uint8_t*>(&data[pos]));
+                pos += 1;
+            }
+        }
+        argument1s.push_back(argument1);
+        argument2s.push_back(argument2);
+
+        int16_t a = 1.0;
+        int16_t b = 0.0;
+        int16_t c = 0.0;
+        int16_t d = 1.0;
+
+        if (weHaveScale) { // WE_HAVE_A_SCALE
+            int16_t scale = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            a = scale;
+            d = scale;
+            pos += 2;
+        } else if (weHaveXYScale) { // WE_HAVE_AN_X_AND_Y_SCALE
+            a = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            pos += 2;
+            d = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            pos += 2;
+        } else if (weHaveTwoByTwo) { // WE_HAVE_A_TWO_BY_TWO
+            a = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            pos += 2;
+            b = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            pos += 2;
+            c = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            pos += 2;
+            d = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            pos += 2;
+        }
+
+        as.push_back(a);
+        bs.push_back(b);
+        cs.push_back(c);
+        ds.push_back(d);
+
+        int32_t m0 = max(abs(a), abs(d)); // Changed b to d
+        int32_t n0 = max(abs(c), abs(d));
+        int32_t m;
+        int32_t n;
+        if ((abs(a) - abs(c)) <= 33 / 65536) {
+            m = 2 * m0;
+        } else {
+            m = m0;
+        }
+        if ((abs(b) - abs(d)) <= 33 / 65536) {
+            n = 2 * n0;
+        } else {
+            n = n0;
+        }
+
+        ms.push_back(m);
+        ns.push_back(n);
     }
-    cout << "size of flags: " << flags.size();
+
+    int16_t numberOfContours = 0;
+    std::vector<uint16_t> endPtsOfContours;
+    uint16_t instructionLength = 0;
+    std::vector<uint8_t> instructions;
+    std::vector<uint8_t> flags;
+    std::vector<int16_t> xCoordinatesPush;
+    std::vector<int16_t> yCoordinatesPush;
+    vector<uint32_t> locas = TTFFile::parse(data).getLocas();
+    int contourOffset = xCoordinatesPush.size();
+    for (int i = 0; i < glyphIndexs.size(); ++i) {
+        Glyph glyph = Glyph::parseGlyph(data, TTFFile::parse(data).getGlyfOffset() + locas[glyphIndexs[i]]);
+        numberOfContours += glyph.getNumberOfContours();
+        for (uint16_t endPtsOfContour : glyph.getEndPtsOfContours()) {
+            endPtsOfContours.push_back(endPtsOfContour + contourOffset);
+        }
+        for (uint8_t flag : glyph.getFlags()) {
+            flags.push_back(flag);
+        }
+        instructionLength += glyph.getInstructionLength();
+        for (uint8_t instruction : glyph.getInstructions()) {
+            instructions.push_back(instruction);
+        }
+        vector<int16_t> xCoordinates = glyph.getXCoordinates();
+        vector<int16_t> yCoordinates = glyph.getYCoordinates();
+        for (int j = 0; j < xCoordinates.size(); ++j) {
+            int16_t xPrime = as[i] * xCoordinates[j] + cs[i] * yCoordinates[j] + argument1s[i];
+            int16_t yPrime = bs[i] * xCoordinates[j] + ds[i] * yCoordinates[j] + argument2s[i];
+            xCoordinatesPush.push_back(xPrime);
+            yCoordinatesPush.push_back(yPrime);
+            
+            // Debug prints
+            std::cout << "x: " << xCoordinates[j] << ", y: " << yCoordinates[j] << std::endl;
+            std::cout << "a: " << as[i] << ", b: " << bs[i] << ", c: " << cs[i] << ", d: " << ds[i] << std::endl;
+            std::cout << "arg1: " << argument1s[i] << ", arg2: " << argument2s[i] << std::endl;
+            std::cout << "x': " << xPrime << ", y': " << yPrime << std::endl;
+        }
+        contourOffset += xCoordinatesPush.size();
+    }
+
+    return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush);
 }
+
 
     Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
     uint32_t pos = offset;
     int16_t numberOfContours = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    cout << "num contours: " << numberOfContours << endl;
+    std::cout << "num contours: " << numberOfContours << endl;
     pos += 2;
     int16_t xMin = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
     pos += 2;
@@ -179,14 +310,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
     if (numberOfContours >= 0) {
         return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
     } else {
-        TTFHeader header = TTFHeader::parse(data);
-        parseCompoundGlyph(data, pos, xMin, yMin, xMax, yMax);
-        std::vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());
-        for (TTFTable* table : tables) {
-            if (table->getTag() == "glyf") {
-                return Glyph::parseGlyph(data, table->getOffset());
-            }
-        }
+        return Glyph::parseCompoundGlyph(data, pos, xMin, yMin, xMax, yMax);
     }
 
 }
