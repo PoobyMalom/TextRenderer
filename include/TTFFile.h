@@ -1,14 +1,15 @@
-#pragma once
-#include <vector>
-#include <string>
-#include <map>
-#include "TTFTable.h"
+#ifndef TTFFILE_H
+#define TTFFILE_H
+
 #include "TTFHeader.h"
-#include "GlyphTable.h"
-#include "LocaTable.h"
+#include "TTFTable.h"
 #include "HeadTable.h"
 #include "CmapTable.h"
 #include "MaxpTable.h"
+#include "LocaTable.h"
+#include "GlyphTable.h"
+#include <vector>
+#include <string>
 
 class TTFFile {
 public:
@@ -25,7 +26,7 @@ public:
         uint16_t locaOffset,
         uint16_t maxpOffset
     );
-    
+
     TTFHeader getHeader() const;
     std::vector<TTFTable*> getTables() const;
     std::vector<uint32_t> getLocas() const;
@@ -39,8 +40,8 @@ public:
     uint16_t getMaxpOffset() const;
 
     static TTFFile parse(const std::vector<char>& data);
-    Glyph parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, uint32_t letter);
-    std::vector<Glyph> parseGlyphs(const std::vector<char>& data, uint16_t platformID, uint16_t endcodingID, std::string letters);
+    Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode);
+    std::vector<Glyph> parseGlyphs(const std::vector<char>& data, std::string letters);
 
 private:
     TTFHeader header;
@@ -55,3 +56,5 @@ private:
     uint16_t locaOffset;
     uint16_t maxpOffset;
 };
+
+#endif // TTFFILE_H

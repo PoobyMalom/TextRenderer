@@ -20,10 +20,11 @@
 #include "Helpers.h"
 using namespace std;
 
-const double SCALINGFACTOR = 0.1;
+double scalingFactor = 0.1;
+int thickness = 2;
 
-const int ADVANCEWIDTH = 600 * SCALINGFACTOR;
-const int ADVANCEHEIGHT = 1320 * SCALINGFACTOR;
+const int ADVANCEWIDTH = 600 * scalingFactor;
+const int ADVANCEHEIGHT = 1320 * scalingFactor;
 
 const int SCREEN_WIDTH = 1400;
 const int SCREEN_HEIGHT = 1320;
@@ -72,27 +73,15 @@ int main() {
 
     TTFFile ttfFile = TTFFile::parse(buffer);
 
-    uint16_t platformID = 0;
-    uint16_t encodingID = 4;
+    cout << "got here" << endl;
 
     string alph1 =  "Café prices increased by 5% due to inflation; isn't that surprising?";
        
     string latinLower = "aáàăắằẵẳâấầẫẩǎåäãąāảạặậæǽbcćĉčċçdďđðeéèĕêếềễểěëẽėęēẻẹệəfƒgǵğĝǧġģhĥħiíìĭîïĩįīỉịıjĵȷkķlĺľļłŀmnńňñņŋoóòŏôốồỗổöőõøǿǫōỏơớờỡởợọộœpqĸrŕřŗsśŝšşșſßtťţțŧuúùŭûůüűũųūủưứừữửựụvwẃẁŵẅxyýỳŷÿỹȳỷỵzźžżþŉ";
-    string ligatures = "-- --- == === != !== =!= =:= =/= <= >= && &&& &= ++ +++ *** ;; !! ?? ??? ?: ?. ?= <: :< :> >: <:< <> <<< >>> << >> || -| _|_ |- ||- |= ||= ## ### #### #{ #[ ]# #( #? #_ #_( #: #! #= ^= <$> <$ $> <+> <+ +> <*> <* *> </ </> /> <!-- <#-- --> -> ->> <<- <- <=< =<< <<= <== <=> <==> ==> => =>> >=> >>= >>- >- -< -<< >-> <-< <-| <=| |=> |-> <-> <~~ <~ <~> ~~ ~~> ~> ~- -~ ~@ [||] |] [| |} {| [< >] |> <| ||> <|| |||> <||| <|> ... .. .= ..< .? :: ::: := ::= :? :?> // /// /* */ /= //= /== @_ __ ??? <:< ;;;";
-    string powerLine = "      ";
-    string controlCode = "␆ ␈ ␇ ␘ ␍ ␐ ␡ ␔ ␑ ␓ ␒ ␙ ␃ ␄ ␗ ␅ ␛ ␜ ␌ ␝ ␉ ␊ ␕ ␤ ␀ ␞ ␏ ␎ ␠ ␁ ␂ ␚ ␖ ␟ ␋";
-    string boxDrawing = "┌ └ ┐ ┘ ┼ ┬ ┴ ├ ┤ ─ │ ╡ ╢ ╖ ╕ ╣ ║ ╗ ╝ ╜ ╛ ╞ ╟ ╚ ╔ ╩ ╦ ╠ ═ ╬ ╧ ╨ ╤ ╥ ╙ ╘ ╒ ╓ ╫ ╪ ━ ┃ ┄ ┅ ┆ ┇ ┈ ┉ ┊ ┋ ┍ ┎ ┏ ┑ ┒ ┓ ┕ ┖ ┗ ┙ ┚ ┛ ┝ ┞ ┟ ┠ ┡ ┢ ┣ ┥ ┦ ┧ ┨ ┩ ┪ ┫ ┭ ┮ ┯ ┰ ┱ ┲ ┳ ┵ ┶ ┷ ┸ ┹ ┺ ┻ ┽ ┾ ┿ ╀ ╁ ╂ ╃ ╄ ╅ ╆ ╇ ╈ ╉ ╊ ╋ ╌ ╍ ╎ ╏ ╭ ╮ ╯ ╰ ╱ ╲ ╳ ╴ ╵ ╶ ╷ ╸ ╹ ╺ ╻ ╼ ╽ ╾ ╿";
-    string blockSymbols = "▁ ▂ ▃ ▄ ▅ ▆ ▇ █ ▀ ▔ ▏ ▎ ▍ ▌ ▋ ▊ ▉ ▐ ▕ ▖ ▗ ▘ ▙ ▚ ▛ ▜ ▝ ▞ ▟ ░ ▒ ▓";
-    string otherSymbols = "₿ ¢ ¤ $ ₫ € ƒ ₴ ₽ £ ₮ ¥ ≃ ∵ ≬ ⋈ ∙ ≔ ∁ ≅ ∐ ⎪ ⋎ ⋄ ∣ ∕ ∤ ∸ ⋐ ⋱ ∈ ∊ ⋮ ∎ ⁼ ≡ ≍ ∹ ∃ ∇ ≳ ∾ ⥊ ⟜ ⎩ ⎨ ⎧ ⋉ ⎢ ⎣ ⎡ ≲ ⋯ ∓ ≫ ≪ ⊸ ⊎ ⨀ ⨅ ⨆ ⊼ ⋂ ⋃ ≇ ⊈ ⊉ ⊽ ⊴ ≉ ∌ ∉ ≭ ≯ ≱ ≢ ≮ ≰ ⋢ ⊄ ⊅ +− × ÷ = ≠ > < ≥ ≤ ± ≈ ¬ ~ ^ ∞ ∅ ∧ ∨ ∩ ∪ ∫ ∆ ∏ ∑ √ ∂ µ ∥ ⎜ ⎝ ⎛ ⎟ ⎠ ⎞ % ‰ ﹢ ⁺ ≺ ≼ ∷ ≟ ∶ ⊆ ⊇ ⤖ ⎭ ⎬ ⎫ ⋊ ⎥ ⎦ ⎤ ⊢ ≗ ∘ ∼ ⊓ ⊔ ⊡ ⊟ ⊞ ⊠ ⊏ ⊑ ⊐ ⊒ ⋆ ≣ ⊂ ≻ ∋ ⅀ ⊃ ⊤ ⊣ ∄ ∴ ≋ ∀ ⋰ ⊥ ⊻ ⊛ ⊝ ⊜ ⊘ ⊖ ⊗ ⊙ ⊕ ↑ ↗ → ↘ ↓ ↙ ← ↖ ↔ ↕ ↝ ↭↞ ↠ ↢ ↣ ↥ ↦ ↧ ⇥↩ ↪ ↾ ⇉ ⇑ ⇒ ⇓ ⇐ ⇔ ⇛ ⇧ ⇨ ⌄ ⌤ ➔ ➜ ➝ ➞ ⟵ ⟶ ⟷ ● ○ ◯ ◔ ◕ ◶ ◌ ◉ ◎ ◦ ◆ ◇ ◈ ◊ ■ □ ▪▫ ◧ ◨ ◩ ◪ ◫ ▲ ▶ ▼ ◀ △ ▷ ▽ ◁ ► ◄ ▻ ◅ ▴ ▸ ▾ ◂ ▵ ▹ ▿ ◃ ⌶ ⍺ ⍶ ⍀ ⍉ ⍥ ⌾ ⍟ ⌽ ⍜ ⍪ ⍢ ⍒ ⍋ ⍙ ⍫ ⍚ ⍱ ⍦ ⍎ ⍊ ⍖ ⍷ ⍩ ⍳ ⍸ ⍤ ⍛ ⍧ ⍅ ⍵ ⍹ ⎕ ⍂ ⌼ ⍠ ⍔ ⍍ ⌺ ⌹ ⍗ ⍌ ⌸ ⍄ ⌻ ⍇ ⍃ ⍯ ⍰ ⍈ ⍁ ⍐ ⍓ ⍞ ⍘ ⍴ ⍆ ⍮ ⌿ ⌷ ⍣ ⍭ ⍨ ⍲ ⍝ ⍡ ⍕ ⍑ ⍏ ⍬ ⚇ ⚠ ⚡ ✓ ✕ ✗ ✶ @ & ¶ § © ® ™ ° ′ ″ | ¦ † ℓ ‡ № ℮ ␣ ⎋ ⌃ ⌞ ⌟ ⌝ ⌜ ⎊ ⎉ ⌂ ⇪ ⌫ ⌦ ⌨ ⌥ ⇟ ⇞ ⌘ ⏎ ⏻ ⏼ ⭘ ⏽ ⏾ ⌅ � ˳ ˷ 𝔸 𝔹 ℂ 𝔻 𝔼 𝔽 𝔾 ℍ 𝕀 𝕁 𝕂 𝕃 𝕄 ℕ 𝕆 ℙ ℚ ℝ 𝕊 𝕋 𝕌 𝕍 𝕎 𝕏 𝕐 ℤ 𝕒 𝕓 𝕔 𝕕 𝕖 𝕗 𝕘 𝕙 𝕚 𝕛 𝕜 𝕝 𝕞 𝕟 𝕠 𝕡 𝕢 𝕣 𝕤 𝕥 𝕦 𝕧 𝕨 𝕩 𝕪";
-    string cyrillic = "А Б В Г Ѓ Ґ Д Е Ё Ж З И Й К Ќ Л М Н О П Р С Т У Ў Ф Х Ч Ц Ш Щ Џ Ь Ъ Ы Љ Њ Ѕ Є Э І Ї Ј Ћ Ю Я Ђ Ғ Қ Ң Ү Ұ Ҷ Һ Ә Ө Ӝ Ӟ Ӥ Ӧ Ө Ӵ а б в г ѓ ґ д е ё ж з и й к ќ л м н о п р с т у ў ф х ч ц ш щ џ ь ъ ы љ њ ѕ є э і ї ј ћ ю я ђ ғ қ ң ү ұ ҷ һ ә ө ӝ ӟ ӥ ӧ ө ӵ";
-    string greek = "Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ Ν Ξ Ο Π Ρ Σ Τ Υ Φ Χ Ψ Ω Ά Έ Ή Ί Ό Ύ Ώ Ϊ Ϋ Ϗ α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ ς σ τ υ φ χ ψ ω ί ϊ ΐ ύ ϋ ΰ ό ώ ά έ ή ϗ ϕ ϖ";
-    string punctuation = ". , : ; … ! ¡ ? ¿ · • * ⁅ ⁆ # ․ ‾ / ‿ ( ) { } [ ] ❰ ❮ ❱ ❯ ⌈ ⌊ ⌉ ⌋ ⦇ ⦈ - – — ‐ _ ‚ „ “ ” ‘ ’ « » ‹ › ‴ ⟨ ⟪ ⟦ ⟩ ⟫ ⟧ · ;";
-    string numbers = "0 0 1 2 3 4 5 6 7 8 9 ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ ⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ½ ¼ ¾ ↋ ↊ ૪";
-    string diacritics = "Á Ă Ắ Ặ Ằ Ẳ Ẵ Ǎ Â Ấ Ậ Ầ Ẩ Ẫ Ä Ạ À Ả Ā Ą Å Ã Æ Ǽ Ć Č Ç Ĉ Ċ Ð Ď Đ É Ĕ Ě Ê Ế Ệ Ề Ể Ễ Ë Ė Ẹ È Ẻ Ē Ę Ɛ Ẽ Ǵ Ğ Ǧ Ĝ Ģ Ġ Ħ Ĥ Í Ĭ Î Ï İ Ị Ì Ỉ Ī Į Ĩ Ĵ Ķ Ĺ Ľ Ļ Ŀ Ł Ń Ň Ņ Ŋ Ñ Ó Ŏ Ô Ố Ộ Ồ Ổ Ỗ Ö Ọ Ò Ỏ Ơ Ớ Ợ Ờ Ở Ỡ Ő Ō Ǫ Ø Ǿ Õ Œ Þ Ŕ Ř Ŗ Ś Š Ş Ŝ Ș ẞ Ə Ŧ Ť Ţ Ț Ú Ŭ Û Ü Ụ Ù Ủ Ư Ứ Ự Ừ Ử Ữ Ű Ū Ų Ů Ũ Ẃ Ŵ Ẅ Ẁ Ý Ŷ Ÿ Ỵ Ỳ Ỷ Ȳ Ỹ Ź Ž Ż á ă â ä à ā ą å ã æ ǽ ć č ç ĉ ċ ð ď đ é ĕ ě ê ë ė è ē ę ə ğ ǧ ĝ ġ ħ ĥ i ı í ĭ î ï ì ī į ĩ j ȷ ĵ ĸ l ĺ ľ ŀ ł m n ń ŉ ň ŋ ñ ó ŏ ô ö ò ơ ő ō ø ǿ õ œ þ ŕ ř s ś š ş ŝ ß ſ ŧ ť ú ŭ û ü ù ư ű ū ģ ķ ļ ņ ŗ ţ ǫ ǵ ș ț ạ ả ấ ầ ẩ ẫ ậ ắ ằ ẳ ẵ ặ ẹ ẻ ẽ ế ề ể ễ ệ ỉ ị ọ ỏ ố ồ ổ ỗ ộ ớ ờ ở ỡ ợ ụ ủ ứ ừ ử ữ ự ỵ ỷ ỹ ų ů ũ ẃ ŵ ẅ ẁ ý ŷ ÿ ỳ z ź ž ż";
 
     vector<Glyph> glyphs;
     try {
-        glyphs = ttfFile.parseGlyphs(buffer, platformID, encodingID, alph1);
+        glyphs = ttfFile.parseGlyphs(buffer, latinLower);
     } catch (const std::exception& e) {
         cerr << "Error parsing glyphs: " << e.what() << endl;
         return 1;
@@ -170,7 +159,7 @@ int main() {
 
         try {
             if (glyphs[i].getNumberOfContours() >= 0) {
-                Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, SCALINGFACTOR, SCREEN_HEIGHT);
+                Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, scalingFactor, SCREEN_HEIGHT, thickness);
             } else {
                 cout << "glyph " << i << " has " << glyphs[i].getNumberOfContours() << " contours" << endl;
                 cout << "glyph " << i << " is a compound glyph" << endl;
@@ -194,6 +183,8 @@ int main() {
     SDL_Event e;
 
     while (!quit) {
+        const int ADVANCEWIDTH = 600 * scalingFactor;
+        const int ADVANCEHEIGHT = 1320 * scalingFactor;
         // Handle events on the queue
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
@@ -217,6 +208,16 @@ int main() {
                         viewportX += SCROLL_SPEED;
                         if (viewportX > CANVAS_WIDTH - SCREEN_WIDTH) viewportX = CANVAS_WIDTH - SCREEN_WIDTH;
                         break;
+                    case SDLK_PLUS:
+                    case SDLK_EQUALS:  // For the '=' key, typically on the same key as '+'
+                        scalingFactor += 0.01;
+                        cout << "scaling factor: " << scalingFactor << endl;
+                        break;
+                    case SDLK_MINUS:
+                        scalingFactor -= 0.01;
+                        if (scalingFactor < 0.01) scalingFactor = 0.01;  // Prevent negative or zero scale
+                        cout << "scaling factor: " << scalingFactor << endl;
+                        break;
                 }
             } else if (e.type == SDL_MOUSEWHEEL) {
                 // Adjust the viewport position based on mouse wheel input
@@ -229,6 +230,40 @@ int main() {
                 if (viewportY > CANVAS_HEIGHT - SCREEN_HEIGHT) viewportY = CANVAS_HEIGHT - SCREEN_HEIGHT;
             }
         }
+
+        // Clear the canvas texture
+        SDL_SetRenderTarget(renderer, canvasTexture);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // Clear with white
+        SDL_RenderClear(renderer);
+
+        // Draw the glyphs
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set draw color for glyphs
+
+        int currentXOffset = 0;
+        int currentYOffset = 0;
+
+        for (size_t i = 0; i < glyphs.size(); ++i) {
+            if (currentXOffset >= CANVAS_WIDTH - ADVANCEWIDTH) {
+                currentXOffset = 0;
+                currentYOffset += ADVANCEHEIGHT;
+            }
+
+            try {
+                if (glyphs[i].getNumberOfContours() >= 0) {
+                    Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, scalingFactor, SCREEN_HEIGHT, thickness);
+                } else {
+                    cout << "glyph " << i << " has " << glyphs[i].getNumberOfContours() << " contours" << endl;
+                    cout << "glyph " << i << " is a compound glyph" << endl;
+                }
+            } catch (const std::exception& e) {
+                cerr << "Error drawing glyph " << i << ": " << e.what() << endl;
+            }
+
+            currentXOffset += ADVANCEWIDTH;
+        }
+
+        // Reset the render target to the default window
+        SDL_SetRenderTarget(renderer, nullptr);
 
         // Clear the renderer
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);

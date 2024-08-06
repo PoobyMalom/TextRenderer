@@ -1,6 +1,5 @@
 #include "TTFFile.h"
 #include "Helpers.h"
-#include <vector>
 #include <iostream>
 
 TTFFile::TTFFile(
@@ -75,11 +74,11 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     TTFHeader header = TTFHeader::parse(data);
     std::vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());
 
-    uint32_t cmapOffset;
-    uint32_t glyfOffset;
-    uint32_t headOffset;
-    uint32_t locaOffset;
-    uint32_t maxpOffset;
+    uint32_t cmapOffset = 0;
+    uint32_t glyfOffset = 0;
+    uint32_t headOffset = 0;
+    uint32_t locaOffset = 0;
+    uint32_t maxpOffset = 0;
 
     for (int i = 0; i < tables.size(); ++i) {
         TTFTable* tempTable = tables[i];
@@ -108,36 +107,28 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
         data, 
         locaOffset, 
         maxpTable.getNumGlyphs()
-        );
-    
+    );
+
     std::vector<uint32_t> locas;
 
     if (indexToLocFormat) {
         const std::vector<uint32_t>& locas32 = locaTable.getOffsets32();
-        for (uint32_t loca : locas32) {
-            locas.push_back(loca);
-        }
-    }
-    else {
+        locas.insert(locas.end(), locas32.begin(), locas32.end());
+    } else {
         const std::vector<uint16_t>& locas16 = locaTable.getOffsets16();
-        for (uint16_t loca : locas16) {
-            locas.push_back(loca);
-        }
+        locas.insert(locas.end(), locas16.begin(), locas16.end());
     }
 
     CmapTable cmapTable = CmapTable::parse(data, cmapOffset);
     return TTFFile(header, tables, locas, headTable, cmapTable, maxpTable, cmapOffset, glyfOffset, headOffset, locaOffset, maxpOffset);
 }
 
-Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, uint16_t encodingID, uint32_t unicode) {
-    uint32_t unicodeValue = unicode;
-    if (unicodeValue == 32) {
-        return Glyph {0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}};
+Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint32_t unicode) {
+    if (unicode == 32) {
+        return Glyph{0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}};
     }
-    //std::cout << "Unicode: " << unicodeValue << std::endl;
 
-    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicodeValue, platformID, encodingID);
-    //std::cout << "Glyph Index: " << glyphIndex << std::endl;
+    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicode);
 
     if (glyphIndex >= locas.size()) {
         std::cerr << "Invalid glyph index: " << glyphIndex << std::endl;
@@ -145,7 +136,6 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, ui
     }
 
     uint32_t locaOffset = locas[glyphIndex];
-    //std::cout << "Loca Offset: " << locaOffset << std::endl;
 
     if (locaOffset >= data.size()) {
         std::cerr << "Invalid loca offset: " << locaOffset << std::endl;
@@ -153,7 +143,6 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, ui
     }
 
     uint32_t glyphOffset = glyfOffset + locaOffset;
-    //std::cout << "Glyph Offset: " << glyphOffset << std::endl;
 
     if (glyphOffset >= data.size()) {
         std::cerr << "Invalid glyph offset: " << glyphOffset << std::endl;
@@ -163,14 +152,12 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint16_t platformID, ui
     return Glyph::parseGlyph(data, glyphOffset);
 }
 
-std::vector<Glyph> TTFFile::parseGlyphs(const std::vector<char>& data, uint16_t platformID, uint16_t encodingID, std::string letters) {
+std::vector<Glyph> TTFFile::parseGlyphs(const std::vector<char>& data, std::string letters) {
     std::vector<uint32_t> chars = stringToUnicode(letters);
-    std::cout << "num chars: " << chars.size() << std::endl;
-    int numLetters = chars.size();
     std::vector<Glyph> glyphs;
-    for (int i = 0; i < numLetters; ++i) {
-        std::cout << "glyph " << i << ": " << letters[i] << std::endl;
-        glyphs.push_back(parseGlyph(data, platformID, encodingID, chars[i]));
+    glyphs.reserve(chars.size());
+    for (uint32_t charCode : chars) {
+        glyphs.push_back(parseGlyph(data, charCode));
     }
     return glyphs;
 }

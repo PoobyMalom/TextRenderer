@@ -118,7 +118,6 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t nu
             pos += 2;
         }
         xCoordinates.push_back(currentX);
-        //std::cout << "x[" << i << "]: " << currentX << std::endl; // Debug print
     }
 
     vector<int16_t> yCoordinates;
@@ -137,7 +136,6 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t nu
             pos += 2;
         }
         yCoordinates.push_back(currentY);
-        //std::cout << "y[" << i << "]: " << currentY << std::endl; // Debug print
     }
 
     return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates);
@@ -279,13 +277,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
             int16_t yPrime = bs[i] * xCoordinates[j] + ds[i] * yCoordinates[j] + argument2s[i];
             xCoordinatesPush.push_back(xPrime);
             yCoordinatesPush.push_back(yPrime);
-            
-            // Debug prints
-            std::cout << "x: " << xCoordinates[j] << ", y: " << yCoordinates[j] << std::endl;
-            std::cout << "a: " << as[i] << ", b: " << bs[i] << ", c: " << cs[i] << ", d: " << ds[i] << std::endl;
-            std::cout << "arg1: " << argument1s[i] << ", arg2: " << argument2s[i] << std::endl;
-            std::cout << "x': " << xPrime << ", y': " << yPrime << std::endl;
-        }
+            }
         contourOffset += xCoordinatesPush.size();
     }
 
@@ -296,7 +288,6 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
     Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
     uint32_t pos = offset;
     int16_t numberOfContours = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    std::cout << "num contours: " << numberOfContours << endl;
     pos += 2;
     int16_t xMin = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
     pos += 2;
@@ -417,7 +408,7 @@ void Glyph::addPointsBetween() {
     endPtsOfContours = newEndPtsOfContours;
 }
 
-void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight) {
+void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness) {
     glyph.addPointsBetween();
     vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
 
@@ -434,22 +425,11 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
             contourStartIndex = endpoints[currentContour] + 1;
             ++currentContour;
         }
-        if (flag & 1) {
-            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-            //drawCircle(renderer, xCoordinates[j] + currentXOffset, SCREEN_HEIGHT - yCoordinates[j] + currentYOffset, radius);
-        } else {
-            SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-            //drawCircle(renderer, xCoordinates[j] + currentXOffset, SCREEN_HEIGHT - yCoordinates[j] + currentYOffset, radius);
-        }
-        if (j == endpoints[currentContour]) {
-            SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-            //drawCircle(renderer, xCoordinates[j] + currentXOffset, SCREEN_HEIGHT - yCoordinates[j] + currentYOffset, 2);
-        }
         if (flag & 1) { // If the current point is an on-curve point
             SDL_Point point1 = { static_cast<int>(xCoordinates[j] * scalingFactor + xOffset), static_cast<int>(screenHeight - yCoordinates[j] * scalingFactor + yOffset)};
             SDL_Point controlPoint;
             SDL_Point point2;
-            if (j !=  endpoints[currentContour] - 1) {
+            if (j != endpoints[currentContour] - 1) {
                 controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
                 controlPoint.y = static_cast<int>(screenHeight - yCoordinates[j + 1] * scalingFactor + yOffset);
                 point2.x = static_cast<int>(xCoordinates[j + 2] * scalingFactor + xOffset);
@@ -457,11 +437,11 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
             } else {
                 controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
                 controlPoint.y = static_cast<int>(screenHeight - yCoordinates[j + 1] * scalingFactor + yOffset);
-                point2.x = static_cast<int>(xCoordinates[contourStartIndex] * scalingFactor + xOffset );
-                point2.y = static_cast<int>(screenHeight - (yCoordinates[contourStartIndex] * scalingFactor) + yOffset );
+                point2.x = static_cast<int>(xCoordinates[contourStartIndex] * scalingFactor + xOffset);
+                point2.y = static_cast<int>(screenHeight - (yCoordinates[contourStartIndex] * scalingFactor) + yOffset);
             }
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            DrawBezier(renderer, point1, controlPoint, point2);
+            DrawBezier(renderer, point1, controlPoint, point2, thickness);
         }
     }
 }
