@@ -18,8 +18,14 @@ private:
     uint16_t encodingID;
     uint16_t format;
 
-    void parseFormat4(const std::vector<char>& data, uint16_t offset);
+    void parseFormat0(const std::vector<char>& data, uint32_t offset);
+    void parseFormat4(const std::vector<char>& data, uint32_t offset);
     void parseFormat12(const std::vector<char>& data, uint32_t offset);
+
+    struct Format0Data {
+        std::vector<uint8_t> glyphIndexArray;
+    };
+    Format0Data format0Data;
 
     struct Format4Data {
         uint16_t segCountX2;
@@ -48,7 +54,7 @@ public:
     CmapTable(const std::vector<char>& data, uint32_t offset);
 
     static CmapTable parse(const std::vector<char>& data, uint32_t offset);
-    uint16_t getGlyphIndex(uint32_t unicodeValue, uint16_t platformID, uint16_t encodingID) const;
+    uint16_t getGlyphIndex(uint32_t unicodeValue) const;
 
 private:
     uint16_t version;

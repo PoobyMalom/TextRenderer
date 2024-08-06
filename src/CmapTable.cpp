@@ -7,6 +7,9 @@
 CmapSubtable::CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t format, const std::vector<char>& data, uint32_t offset)
     : platformID(platformID), encodingID(encodingID), format(format) {
         switch (format) {
+            case 0:
+                parseFormat0(data, offset);
+                break;
             case 4:
                 parseFormat4(data, offset);
                 break;
@@ -18,27 +21,56 @@ CmapSubtable::CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t fo
         }
     }
 
-void CmapSubtable::parseFormat4(const std::vector<char>& data, uint16_t offset) {
-    uint16_t pos = offset;
-    format4Data.segCountX2 = (data[pos] << 8) | data[pos + 1];
-    pos += 2;
-    format4Data.endCodes.resize(format4Data.segCountX2 / 2);
-    for (int i = 0; i < format4Data.endCodes.size(); ++i) {
-        format4Data.endCodes[i] = (data[pos] << 8) | data[pos + 1];
+void CmapSubtable::parseFormat0(const std::vector<char>& data, uint32_t offset) {
+    uint32_t pos = offset + 6;
+    for (int i = 0; i < 256; ++i) {
+        format0Data.glyphIndexArray.push_back(*reinterpret_cast<const uint8_t*>(&data[pos]));
+        pos += 1;
+    }
+}
+
+void CmapSubtable::parseFormat4(const std::vector<char>& data, uint32_t offset) {
+    uint32_t pos = offset + 6;
+    format4Data.segCountX2 = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+    pos += 6;
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
+        uint16_t endCode = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+        format4Data.endCodes.push_back(endCode);
         pos += 2;
     }
     pos += 2;
-
-
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
+        uint16_t startCode = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+        format4Data.startCodes.push_back(startCode);
+        pos += 2;
+    }
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
+        int16_t idDelta = CmapSubtable::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+        format4Data.idDeltas.push_back(idDelta);
+        pos += 2;
+    }
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
+        uint16_t idRangeOffset = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+        format4Data.idRangeOffsets.push_back(idRangeOffset);
+        pos += 2;
+    }
+    uint16_t glyphIDArrayLength = 0;
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
+        if (format4Data.idRangeOffsets[i] != 0) {
+            glyphIDArrayLength += format4Data.endCodes[i] - format4Data.startCodes[i] + 1;
+        }
+    }
+    for (int i = 0; i < glyphIDArrayLength; ++i) {
+        uint16_t glyphID = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
+        format4Data.glyphIdArray.push_back(glyphID);
+        pos += 2;
+    }
 }
 
 void CmapSubtable::parseFormat12(const std::vector<char>& data, uint32_t offset) {
     uint32_t pos = offset + 12;
     format12Data.nGroups = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
-    //std::cout << "nGroups: " << format12Data.nGroups << std::endl; 
     pos += 4;
-    std::cout << "segCountX2: " << format4Data.segCountX2 << std::endl;
-    std::cout << "nGroups: " << format12Data.nGroups << std::endl;
     format12Data.startCharCodes.resize(format12Data.nGroups);
     format12Data.endCharCodes.resize(format12Data.nGroups);
     format12Data.startGlyphCodes.resize(format12Data.nGroups);
@@ -51,35 +83,38 @@ void CmapSubtable::parseFormat12(const std::vector<char>& data, uint32_t offset)
         format12Data.startGlyphCodes[i] = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
         pos += 4;
     }
-    //std::cout << format12Data.startGlyphCodes[3] << std::endl;
 }
 
 uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
     if (format == 4) {
-        for (int i = 0; i < format4Data.endCodes.size(); ++i) {
+        for (size_t i = 0; i < format4Data.endCodes.size(); ++i) {
             if (unicodeValue <= format4Data.endCodes[i]) {
                 if (unicodeValue >= format4Data.startCodes[i]) {
                     uint16_t offset = format4Data.idRangeOffsets[i];
                     if (offset == 0) {
                         return (unicodeValue + format4Data.idDeltas[i]) % 65536;
                     } else {
-                        return 0;
+                        size_t glyphIndexPos = (offset / 2) + (unicodeValue - format4Data.startCodes[i]) - (format4Data.segCountX2 / 2 - i);
+                        if (glyphIndexPos < format4Data.glyphIdArray.size()) {
+                            return format4Data.glyphIdArray[glyphIndexPos];
+                        } else {
+                            return 0;
+                        }
                     }
-                    break;
                 }
+                break;
             }
         }
     }
     if (format == 12) {
         for (int i = 0; i < format12Data.nGroups; ++i) {
             if (unicodeValue >= format12Data.startCharCodes[i] && unicodeValue <= format12Data.endCharCodes[i]) {
-                //std::cout << "startCharCode " << i << ": " << format12Data.startCharCodes[i] << std::endl;
-                //std::cout << "endCharCode " << i << ": " << format12Data.endCharCodes[i] << std::endl;
-                //std::cout << "startGlyphCode " << i << ": " << format12Data.startGlyphCodes[i] << std::endl; 
-                //std::cout << "Returning: " << format12Data.startGlyphCodes[i] + (unicodeValue - format12Data.startCharCodes[i]) << std::endl;
                 return format12Data.startGlyphCodes[i] + (unicodeValue - format12Data.startCharCodes[i]);
             }
         }
+    }
+    if (format == 0) {
+        return format0Data.glyphIndexArray[unicodeValue];
     }
     throw std::runtime_error("unsupported format");
     return 0;
@@ -88,27 +123,18 @@ uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
 CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
     uint32_t pos = offset;
     version = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    //std::cout << "version confirm: " << version << std::endl;
     pos += 2;
     numSubtables = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    //std::cout << "numSubtable confirm: " << numSubtables << std::endl;
     pos += 2;
-    //std::cout << "------------------------------------" << std::endl;
-
     for (int i = 0; i < numSubtables; ++i) {
         uint16_t platformID = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        //std::cout << "platformID confirm: " << platformID << std::endl;
         pos += 2;
         uint16_t encodingID = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        //std::cout << "encodingID confirm: " << encodingID << std::endl;
         pos += 2;
         uint32_t subtableOffset = CmapTable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
         pos += 4;
-        //std::cout << "subtableOffset confirm: " << subtableOffset << std::endl;
         uint16_t format = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset + subtableOffset]));
-        //std::cout << "format confirm: " << format << std::endl;
         subtables.emplace_back(platformID, encodingID, format, data, offset + subtableOffset);
-        //std::cout << "------------------------------------" << std::endl;
     }
 
 }
@@ -117,10 +143,28 @@ CmapTable CmapTable::parse(const std::vector<char>& data, uint32_t offset) {
     return CmapTable(data, offset);
 }
 
-uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue, uint16_t platformID, uint16_t encodingID) const {
+uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
+    // Prioritize Format 12 (UCS-4)
     for (const auto& subtable : subtables) {
-        if (subtable.getPlatformID() == platformID && subtable.getEncodingID() == encodingID) {
+        if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 10) {
             return subtable.getGlyphIndex(unicodeValue);
+            break;
+        }
+    }
+
+    // If no Format 12 found, look for Format 4 (UCS-2)
+    for (const auto& subtable : subtables) {
+        if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 1) {
+            return subtable.getGlyphIndex(unicodeValue);
+            break;
+        }
+    }
+
+    // If no Format 4 found, look for Format 0 (Macintosh Roman)
+    for (const auto& subtable : subtables) {
+        if (subtable.getPlatformID() == 1 && subtable.getEncodingID() == 0) {
+            return subtable.getGlyphIndex(unicodeValue);
+            break;
         }
     }
     std::runtime_error("could not find glyph");
