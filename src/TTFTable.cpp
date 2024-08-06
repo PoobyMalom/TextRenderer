@@ -24,8 +24,7 @@ std::vector<TTFTable*> TTFTable::parseTableDirectory(const std::vector<char>& da
     std::vector<TTFTable*> tables;
 
     size_t offset = 12;
-    uint16_t i = 0;
-    for (i; i < numTables; ++i) {
+    for (int i = 0; i < numTables; ++i) {
         std::string tag(data.begin() + offset, data.begin() + offset + 4);
 
         uint32_t checksum;

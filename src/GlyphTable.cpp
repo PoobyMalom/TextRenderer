@@ -408,7 +408,7 @@ void Glyph::addPointsBetween() {
     endPtsOfContours = newEndPtsOfContours;
 }
 
-void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness) {
+void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int thickness, int screenHeight) {
     glyph.addPointsBetween();
     vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
 
@@ -426,17 +426,21 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
             ++currentContour;
         }
         if (flag & 1) { // If the current point is an on-curve point
-            SDL_Point point1 = { static_cast<int>(xCoordinates[j] * scalingFactor + xOffset), static_cast<int>(screenHeight - yCoordinates[j] * scalingFactor + yOffset)};
+            // Adjust the y-coordinates based on screen height and scaling factor
+            SDL_Point point1 = { 
+                static_cast<int>(xCoordinates[j] * scalingFactor + xOffset), 
+                static_cast<int>(screenHeight - (yCoordinates[j] * scalingFactor) + yOffset) 
+            };
             SDL_Point controlPoint;
             SDL_Point point2;
             if (j != endpoints[currentContour] - 1) {
                 controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
-                controlPoint.y = static_cast<int>(screenHeight - yCoordinates[j + 1] * scalingFactor + yOffset);
+                controlPoint.y = static_cast<int>(screenHeight - (yCoordinates[j + 1] * scalingFactor) + yOffset);
                 point2.x = static_cast<int>(xCoordinates[j + 2] * scalingFactor + xOffset);
-                point2.y = static_cast<int>(screenHeight - yCoordinates[j + 2] * scalingFactor + yOffset);
+                point2.y = static_cast<int>(screenHeight - (yCoordinates[j + 2] * scalingFactor) + yOffset);
             } else {
                 controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
-                controlPoint.y = static_cast<int>(screenHeight - yCoordinates[j + 1] * scalingFactor + yOffset);
+                controlPoint.y = static_cast<int>(screenHeight - (yCoordinates[j + 1] * scalingFactor) + yOffset);
                 point2.x = static_cast<int>(xCoordinates[contourStartIndex] * scalingFactor + xOffset);
                 point2.y = static_cast<int>(screenHeight - (yCoordinates[contourStartIndex] * scalingFactor) + yOffset);
             }

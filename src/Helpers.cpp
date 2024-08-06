@@ -16,7 +16,7 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
         return;
     }
 
-    int numPoints = 28; // Increase the number of points for a smoother curve
+    int numPoints = 20; // Increase the number of points for a smoother curve
     float t = 0.0;
     float step = 1.0f / numPoints;
     std::vector<SDL_Point> points;
@@ -53,7 +53,6 @@ std::vector<uint32_t> stringToUnicode(const std::string& input) {
 
     // Iterate over the string
     for (size_t i = 0; i < length;) {
-        std::cout << "letter " << input[i] << std::endl;
         uint32_t codePoint = 0;
         unsigned char c = input[i];
 

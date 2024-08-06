@@ -18,13 +18,11 @@
 #include "GlyphTable.h"
 #include "TTFFile.h"
 #include "Helpers.h"
+#include "SDLInitializer.h"
 using namespace std;
 
 double scalingFactor = 0.1;
 int thickness = 2;
-
-const int ADVANCEWIDTH = 600 * scalingFactor;
-const int ADVANCEHEIGHT = 1320 * scalingFactor;
 
 const int SCREEN_WIDTH = 1400;
 const int SCREEN_HEIGHT = 1320;
@@ -33,34 +31,11 @@ const int SCREEN_HEIGHT = 1320;
 const int CANVAS_WIDTH = 10000;
 const int CANVAS_HEIGHT = 10000;
 
-void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
-    for (int w = -radius; w <= radius; w++) {
-        for (int h = -radius; h <= radius; h++) {
-            if (w*w + h*h <= radius*radius) {
-                SDL_RenderDrawPoint(renderer, centerX + w, centerY + h);
-            }
-        }
-    }
-}
-
-uint32_t convertEndian32(uint32_t value) {
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
-}
-
-uint16_t convertEndian16(uint16_t value) {
-    return ((value >> 8) & 0x00FF) |
-           ((value << 8)  & 0xFF00);
-}
-
 int main() {
     // Open the file in binary mode
     ifstream file("src/fonts/JetBrainsMono-Bold.ttf", ios::binary);
     file.seekg(0, ios::end);
     streampos fileSize = file.tellg();
-    cout << "File size: " << fileSize << " bytes" << endl;
     file.seekg(0, ios::beg);
 
     if (fileSize < sizeof(uint32_t)) {
@@ -73,111 +48,27 @@ int main() {
 
     TTFFile ttfFile = TTFFile::parse(buffer);
 
-    cout << "got here" << endl;
-
-    string alph1 =  "Café prices increased by 5% due to inflation; isn't that surprising?";
-       
-    string latinLower = "aáàăắằẵẳâấầẫẩǎåäãąāảạặậæǽbcćĉčċçdďđðeéèĕêếềễểěëẽėęēẻẹệəfƒgǵğĝǧġģhĥħiíìĭîïĩįīỉịıjĵȷkķlĺľļłŀmnńňñņŋoóòŏôốồỗổöőõøǿǫōỏơớờỡởợọộœpqĸrŕřŗsśŝšşșſßtťţțŧuúùŭûůüűũųūủưứừữửựụvwẃẁŵẅxyýỳŷÿỹȳỷỵzźžżþŉ";
+    string textToRender =  "Café prices increased by 5% due to inflation; isn't that surprising?"; 
 
     vector<Glyph> glyphs;
     try {
-        glyphs = ttfFile.parseGlyphs(buffer, latinLower);
+        glyphs = ttfFile.parseGlyphs(buffer, textToRender);
     } catch (const std::exception& e) {
         cerr << "Error parsing glyphs: " << e.what() << endl;
         return 1;
     }
 
-    cout << "number of glyphs: " << glyphs.size() << endl;
-
     Uint32 startTime = SDL_GetTicks();
     int frameCount = 0;
 
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-        cerr << "SDL initialization failed: " << SDL_GetError() << endl;
-        return 1;
-    }
-
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << endl;
-        return -1;
-    }
-
-    // Create window
-    SDL_Window* window = SDL_CreateWindow("Scrollable SDL Window",
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SCREEN_WIDTH,
-                                          SCREEN_HEIGHT,
-                                          SDL_WINDOW_SHOWN);
-    if (window == nullptr) {
-        cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << endl;
-        return -1;
-    }
-
-    // Create renderer for window
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == nullptr) {
-        cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << endl;
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
-    // Create a texture to represent the large canvas
-    SDL_Texture* canvasTexture = SDL_CreateTexture(renderer,
-                                                   SDL_PIXELFORMAT_RGBA8888,
-                                                   SDL_TEXTUREACCESS_TARGET,
-                                                   CANVAS_WIDTH,
-                                                   CANVAS_HEIGHT);
-    if (canvasTexture == nullptr) {
-        cerr << "Texture could not be created! SDL_Error: " << SDL_GetError() << endl;
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
-    // Set the canvas texture as the target for rendering
-    SDL_SetRenderTarget(renderer, canvasTexture);
-
-    // Clear the canvas texture with a color (for example, white)
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderClear(renderer);
-
-    // Draw something on the canvas (example: a red rectangle)
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-
-    int currentXOffset = 0;
-    int currentYOffset = 0;
-    int radius = 4;
-
-    for (size_t i = 0; i < glyphs.size(); ++i) {
-        if (currentXOffset >= CANVAS_WIDTH - ADVANCEWIDTH) {
-            currentXOffset = 0;
-            currentYOffset += ADVANCEHEIGHT;
-        }
-
-        try {
-            if (glyphs[i].getNumberOfContours() >= 0) {
-                Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, scalingFactor, SCREEN_HEIGHT, thickness);
-            } else {
-                cout << "glyph " << i << " has " << glyphs[i].getNumberOfContours() << " contours" << endl;
-                cout << "glyph " << i << " is a compound glyph" << endl;
-            }
-        } catch (const std::exception& e) {
-            cerr << "Error drawing glyph " << i << ": " << e.what() << endl;
-        }
-
-        currentXOffset += ADVANCEWIDTH;
-    }
-
-    // Reset the render target to the default window
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_Window* window = initializeWindow("text_renderer", SCREEN_WIDTH, SCREEN_HEIGHT);
+    SDL_Renderer* renderer = initializeRenderer(window);
+    SDL_Texture* canvasTexture = intializeTexture(renderer, window, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // Variables for scrolling
     int viewportX = 0;
     int viewportY = 0;
-    const int SCROLL_SPEED = 10;
+    const int SCROLL_SPEED = 20;
 
     bool quit = false;
     SDL_Event e;
@@ -211,12 +102,10 @@ int main() {
                     case SDLK_PLUS:
                     case SDLK_EQUALS:  // For the '=' key, typically on the same key as '+'
                         scalingFactor += 0.01;
-                        cout << "scaling factor: " << scalingFactor << endl;
                         break;
                     case SDLK_MINUS:
                         scalingFactor -= 0.01;
                         if (scalingFactor < 0.01) scalingFactor = 0.01;  // Prevent negative or zero scale
-                        cout << "scaling factor: " << scalingFactor << endl;
                         break;
                 }
             } else if (e.type == SDL_MOUSEWHEEL) {
@@ -240,7 +129,7 @@ int main() {
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set draw color for glyphs
 
         int currentXOffset = 0;
-        int currentYOffset = 0;
+        int currentYOffset = 100;
 
         for (size_t i = 0; i < glyphs.size(); ++i) {
             if (currentXOffset >= CANVAS_WIDTH - ADVANCEWIDTH) {
@@ -249,12 +138,7 @@ int main() {
             }
 
             try {
-                if (glyphs[i].getNumberOfContours() >= 0) {
-                    Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, scalingFactor, SCREEN_HEIGHT, thickness);
-                } else {
-                    cout << "glyph " << i << " has " << glyphs[i].getNumberOfContours() << " contours" << endl;
-                    cout << "glyph " << i << " is a compound glyph" << endl;
-                }
+                Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, scalingFactor, SCREEN_HEIGHT, thickness);
             } catch (const std::exception& e) {
                 cerr << "Error drawing glyph " << i << ": " << e.what() << endl;
             }
