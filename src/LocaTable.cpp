@@ -1,24 +1,22 @@
 #include "LocaTable.h"
+#include "Helpers.h"
 #include <cstring>
 #include <arpa/inet.h> // For ntohl and ntohs
 
 LocaTable LocaTable::parse(bool is32bit, const std::vector<char>& data, size_t locaOffset, size_t numGlyphs) {
     LocaTable locaTable;
     locaTable.is32bitFormat = is32bit;
+    int pos = locaOffset;
 
     if (is32bit) {
         locaTable.offsets32.resize(numGlyphs + 1);
         for (size_t i = 0; i <= numGlyphs; ++i) {
-            uint32_t offset;
-            std::memcpy(&offset, &data[locaOffset + i * 4], 4);
-            locaTable.offsets32[i] = ntohl(offset); // Assuming big-endian in TTF
+            locaTable.offsets32[i] = read4Bytes(data, pos);
         }
     } else {
         locaTable.offsets16.resize(numGlyphs + 1);
         for (size_t i = 0; i <= numGlyphs; ++i) {
-            uint16_t offset;
-            std::memcpy(&offset, &data[locaOffset + i * 2], 2);
-            locaTable.offsets16[i] = ntohs(offset); // Assuming big-endian in TTF
+            locaTable.offsets16[i] = read2Bytes(data, pos);
         }
     }
 

@@ -62,8 +62,4 @@ private:
     int16_t fontDirectionHint;
     int16_t indexToLocFormat;
     int16_t glyphDataFormat;
-
-    static uint16_t convertEndian16(uint16_t value);
-    static uint32_t convertEndian32(uint32_t value);
-    static uint64_t convertEndian64(uint64_t value);
 };

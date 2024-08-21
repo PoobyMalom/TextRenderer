@@ -2,7 +2,9 @@
 #include "Helpers.h"
 #include "TTFHeader.h"
 #include "TTFFile.h"
+#include "MovableLine.h"
 #include <vector>
+#include <tuple>
 #include <iostream>
 using namespace std;
 
@@ -30,63 +32,27 @@ Glyph::Glyph(
     xCoordinates(xCoordinates),
     yCoordinates(yCoordinates) {}
 
-int16_t Glyph::getNumberOfContours() const {
-    return numberOfContours;
-}
+int16_t Glyph::getNumberOfContours() const { return numberOfContours; }
+int16_t Glyph::getXMin() const { return xMin; }
+int16_t Glyph::getYMin() const { return yMin; }
+int16_t Glyph::getXMax() const { return xMax; }
+int16_t Glyph::getYMax() const { return yMax; }
+vector<uint16_t> Glyph::getEndPtsOfContours() const { return endPtsOfContours; }
+uint16_t Glyph::getInstructionLength() const { return instructionLength; }
+vector<uint8_t> Glyph::getInstructions() const { return instructions; }
+vector<uint8_t> Glyph::getFlags() const { return flags; }
+vector<int16_t> Glyph::getXCoordinates() const { return xCoordinates; }
+vector<int16_t> Glyph::getYCoordinates() const { return yCoordinates; }
 
-int16_t Glyph::getXMin() const {
-    return xMin;
-}
+Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
+    int pos = offset;
 
-int16_t Glyph::getYMin() const {
-    return yMin;
-}
-
-int16_t Glyph::getXMax() const {
-    return xMax;
-}
-
-int16_t Glyph::getYMax() const {
-    return yMax;
-}
-
-vector<uint16_t> Glyph::getEndPtsOfContours() const {
-    return endPtsOfContours;
-}
-
-uint16_t Glyph::getInstructionLength() const {
-    return instructionLength;
-}
-
-vector<uint8_t> Glyph::getInstructions() const {
-    return instructions;
-}
-
-vector<uint8_t> Glyph::getFlags() const {
-    return flags;
-}
-
-vector<int16_t> Glyph::getXCoordinates() const {
-    return xCoordinates;
-}
-
-vector<int16_t> Glyph::getYCoordinates() const {
-    return yCoordinates;
-}
-
-Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
     vector<uint16_t> endPtsOfContours;
-    for (int i = 0; i < numberOfContours; ++i) {
-        uint16_t endPtsOfContour = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        endPtsOfContours.push_back(endPtsOfContour);
-        pos += 2;
-    }
+    for (int i = 0; i < numberOfContours; ++i) { endPtsOfContours.push_back(read2Bytes(data, pos)); }
 
-    uint16_t instructionLength = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    pos += 2;
+    uint16_t instructionLength = read2Bytes(data, pos);
     vector<uint8_t> instructions(instructionLength);
-    std::memcpy(instructions.data(), &data[pos], instructionLength);
-    pos += instructionLength;
+    for (int i = 0; i < instructionLength; ++i) { instructions.push_back(readByte(data, pos)); }
 
     vector<uint8_t> flags;
     uint16_t totalPoints = endPtsOfContours.back() + 1;
@@ -113,9 +79,7 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t nu
                 currentX += delta;
             }
         } else if (!(flags[i] & 16)) { // Long vector
-            int16_t delta = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            currentX += delta;
-            pos += 2;
+            currentX += read2Bytes(data, pos);
         }
         xCoordinates.push_back(currentX);
     }
@@ -131,9 +95,7 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t nu
                 currentY -= delta;
             }
         } else if (!(flags[i] & 32)) { // Long vector
-            int16_t delta = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            currentY += delta;
-            pos += 2;
+            currentY += read2Bytes(data, pos);
         }
         yCoordinates.push_back(currentY);
     }
@@ -141,7 +103,8 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t pos, int16_t nu
     return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates);
 }
 
-Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
+Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
+    int pos = offset;
     bool keepGoing = true;
     vector<uint16_t> glyphIndexs;
     vector<int16_t> argument1s;
@@ -154,8 +117,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
     vector<int32_t> ns;
 
     while (keepGoing) {
-        uint16_t flag = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        pos += 2;
+        uint16_t flag = read2Bytes(data, pos);
         bool isWord = flag & 1;
         bool isXY = flag >> 1 & 1;
         bool moreGlyphs = flag >> 5 & 1;
@@ -165,34 +127,26 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
         bool weHaveScale = flag >> 3 & 1;
         bool weHaveXYScale = flag >> 6 & 1;
         bool weHaveTwoByTwo = flag >> 7 & 1;
-        uint16_t glyphIndex = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        glyphIndexs.push_back(glyphIndex);
-        pos += 2;
+
+        glyphIndexs.push_back(read2Bytes(data, pos));
+
         int16_t argument1;
         int16_t argument2;
         if (isWord) {
             if (isXY) {
-                argument1 = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-                pos += 2;
-                argument2 = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-                pos += 2;
+                argument1 = read2Bytes(data, pos);
+                argument2 = read2Bytes(data, pos);
             } else {
-                argument1 = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-                pos += 2;
-                argument2 = Glyph::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-                pos += 2;
+                argument1 = read2Bytes(data, pos);
+                argument2 = read2Bytes(data, pos);
             }
         } else {
             if (isXY) {
-                argument1 = static_cast<int16_t>(*reinterpret_cast<const int8_t*>(&data[pos]));
-                pos += 1;
-                argument2 = static_cast<int16_t>(*reinterpret_cast<const int8_t*>(&data[pos]));
-                pos += 1;
+                argument1 = static_cast<int16_t>(readByte(data, pos));
+                argument2 = static_cast<int16_t>(readByte(data, pos));
             } else {
-                argument1 = static_cast<int16_t>(*reinterpret_cast<const uint8_t*>(&data[pos]));
-                pos += 1;
-                argument2 = static_cast<int16_t>(*reinterpret_cast<const uint8_t*>(&data[pos]));
-                pos += 1;
+                argument1 = static_cast<int16_t>(readByte(data, pos));
+                argument2 = static_cast<int16_t>(readByte(data, pos));
             }
         }
         argument1s.push_back(argument1);
@@ -204,24 +158,17 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
         int16_t d = 1.0;
 
         if (weHaveScale) { // WE_HAVE_A_SCALE
-            int16_t scale = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
+            int16_t scale = read2Bytes(data, pos);
             a = scale;
             d = scale;
-            pos += 2;
         } else if (weHaveXYScale) { // WE_HAVE_AN_X_AND_Y_SCALE
-            a = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            pos += 2;
-            d = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            pos += 2;
+            a = read2Bytes(data, pos);
+            d = read2Bytes(data, pos);
         } else if (weHaveTwoByTwo) { // WE_HAVE_A_TWO_BY_TWO
-            a = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            pos += 2;
-            b = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            pos += 2;
-            c = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            pos += 2;
-            d = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-            pos += 2;
+            a = read2Bytes(data, pos);
+            b = read2Bytes(data, pos);
+            c = read2Bytes(data, pos);
+            d = read2Bytes(data, pos);
         }
 
         as.push_back(a);
@@ -229,7 +176,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
         cs.push_back(c);
         ds.push_back(d);
 
-        int32_t m0 = max(abs(a), abs(d)); // Changed b to d
+        int32_t m0 = max(abs(a), abs(d));
         int32_t n0 = max(abs(c), abs(d));
         int32_t m;
         int32_t n;
@@ -249,12 +196,12 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
     }
 
     int16_t numberOfContours = 0;
-    std::vector<uint16_t> endPtsOfContours;
+    vector<uint16_t> endPtsOfContours;
     uint16_t instructionLength = 0;
-    std::vector<uint8_t> instructions;
-    std::vector<uint8_t> flags;
-    std::vector<int16_t> xCoordinatesPush;
-    std::vector<int16_t> yCoordinatesPush;
+    vector<uint8_t> instructions;
+    vector<uint8_t> flags;
+    vector<int16_t> xCoordinatesPush;
+    vector<int16_t> yCoordinatesPush;
     vector<uint32_t> locas = TTFFile::parse(data).getLocas();
     int contourOffset = xCoordinatesPush.size();
     for (int i = 0; i < glyphIndexs.size(); ++i) {
@@ -286,17 +233,12 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
 
 
     Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
-    uint32_t pos = offset;
-    int16_t numberOfContours = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    pos += 2;
-    int16_t xMin = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    pos += 2;
-    int16_t yMin = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    pos += 2;
-    int16_t xMax = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    pos += 2;
-    int16_t yMax = Glyph::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-    pos += 2;
+    int pos = offset;
+    int16_t numberOfContours = read2Bytes(data, pos);
+    int16_t xMin = read2Bytes(data, pos);
+    int16_t yMin = read2Bytes(data, pos);
+    int16_t xMax = read2Bytes(data, pos);
+    int16_t yMax = read2Bytes(data, pos);
 
     if (numberOfContours >= 0) {
         return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
@@ -304,21 +246,6 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t pos, int16_t 
         return Glyph::parseCompoundGlyph(data, pos, xMin, yMin, xMax, yMax);
     }
 
-}
-
-
-
-
-uint32_t Glyph::convertEndian32(uint32_t value) {
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
-}
-
-uint16_t Glyph::convertEndian16(uint16_t value) {
-    return ((value >> 8) & 0x00FF) |
-           ((value << 8)  & 0xFF00);
 }
 
 void Glyph::addPointsBetween() {
@@ -408,12 +335,12 @@ void Glyph::addPointsBetween() {
     endPtsOfContours = newEndPtsOfContours;
 }
 
-void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int thickness, int screenHeight) {
-    glyph.addPointsBetween();
+void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int thickness, int screenHeight, Ray ray) {
     vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
 
     int currentContour = 0;
     int contourStartIndex = 0;
+    int numIntersections = 0;
 
     vector<int16_t> xCoordinates = glyph.getXCoordinates();
     vector<int16_t> yCoordinates = glyph.getYCoordinates();
@@ -445,7 +372,39 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
                 point2.y = static_cast<int>(screenHeight - (yCoordinates[contourStartIndex] * scalingFactor) + yOffset);
             }
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            DrawBezier(renderer, point1, controlPoint, point2, thickness);
+            DrawBezier(renderer, point1, controlPoint, point2);
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            tuple<float, float> roots = {0.0, 0.0}; //calculateQuadraticRoots(point1, controlPoint, point2, ray.y1);
+            float root1 = get<0>(roots);
+            float root2 = get<1>(roots);
+
+            if (0 <= root1 & root1 <= 1) {
+                SDL_Point root1Point = getBezierPoint(point1, controlPoint, point2, root1);
+                if (root1Point.x >= ray.x1) {
+                    // SDL_Rect root1Rect = {root1Point.x, root1Point.y, 5, 5};
+                    // SDL_RenderDrawRect(renderer, &root1Rect);
+                    numIntersections++;
+                }
+            }
+
+            if (0 <= root2 & root2 <= 1) {
+                SDL_Point root2Point = getBezierPoint(point1, controlPoint, point2, root2);
+                if (root2Point.x >= ray.x1) {
+                    // SDL_Rect root2Rect = {root2Point.x, root2Point.y, 5, 5};
+                    // SDL_RenderDrawRect(renderer, &root2Rect);
+                    numIntersections++;
+                }
+            }
+            
         }
     }
+    if (numIntersections % 2 == 1) {
+        //cout << "inside glyph" << endl;
+        //cout << "num intersections mod 2 is: " << (numIntersections & 2) << endl;'
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        SDL_RenderDrawPoint(renderer, ray.x1, ray.y1);
+    } else {
+        //cout << "outside glyph" << endl;
+    }
+    //cout << "Number of intersections: " << numIntersections << endl;
 }

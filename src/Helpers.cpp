@@ -1,8 +1,5 @@
 #include "Helpers.h"
-#include "MovablePoint.h"
-#include <fstream>
 #include <iostream>
-#include <vector>
 
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2) {
     // Check if the control point is collinear with the start and end points
@@ -47,8 +44,8 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     }
 }
 
-std::vector<uint32_t> stringToUnicode(const std::string& input) {
-    std::vector<uint32_t> unicodePoints;
+vector<uint32_t> stringToUnicode(const string& input) {
+    vector<uint32_t> unicodePoints;
     size_t length = input.size();
 
     // Iterate over the string
@@ -71,11 +68,59 @@ std::vector<uint32_t> stringToUnicode(const std::string& input) {
             i += 4;
         } else {
             // Invalid UTF-8 byte sequence, handle error if needed
-            throw std::runtime_error("Invalid UTF-8 sequence");
+            throw runtime_error("Invalid UTF-8 sequence");
         }
 
         unicodePoints.push_back(codePoint);
     }
 
     return unicodePoints;
+}
+
+SDL_Point getBezierPoint(const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point3, float t) {
+    SDL_Point temp;
+    temp.x = ((1 - t) * (1 - t)) * point1.x + 2 * (1 - t) * t * controlPoint.x + (t * t) * point3.x;
+    temp.y = ((1 - t) * (1 - t)) * point1.y + 2 * (1 - t) * t * controlPoint.y + (t * t) * point3.y;
+    return temp;
+}
+
+uint16_t convertEndian16(uint16_t value) {
+    return (value >> 8) | (value << 8);
+}
+uint32_t convertEndian32(uint32_t value) {
+    return ((value >> 24) & 0x000000FF) |
+           ((value >> 8)  & 0x0000FF00) |
+           ((value << 8)  & 0x00FF0000) |
+           ((value << 24) & 0xFF000000);
+}
+uint64_t convertEndian64(uint64_t value) {
+    return ((value >> 56) & 0x00000000000000FF) |
+           ((value >> 40) & 0x000000000000FF00) |
+           ((value >> 24) & 0x0000000000FF0000) |
+           ((value >> 8)  & 0x00000000FF000000) |
+           ((value << 8)  & 0x000000FF00000000) |
+           ((value << 24) & 0x0000FF0000000000) |
+           ((value << 40) & 0x00FF000000000000) |
+           ((value << 56) & 0xFF00000000000000);
+}
+
+uint8_t readByte(const vector<char>& data, int& offset) {
+    uint8_t value = *reinterpret_cast<const uint8_t*>(&data[offset]);
+    offset += 1;
+    return value;
+};
+uint16_t read2Bytes(const vector<char>& data, int& offset) {
+    uint16_t value = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset]));
+    offset += 2;
+    return value;
+}
+uint32_t read4Bytes(const vector<char>& data, int& offset) {
+    uint32_t value = convertEndian32(*reinterpret_cast<const uint32_t*>(&data[offset]));
+    offset += 4;
+    return value;
+}
+uint64_t read8Bytes(const vector<char>& data, int& offset) {
+    uint64_t value = convertEndian64(*reinterpret_cast<const uint64_t*>(&data[offset]));
+    offset += 8;
+    return value;
 }

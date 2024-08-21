@@ -1,4 +1,5 @@
 #include "HeadTable.h"
+#include "Helpers.h"
 #include <cstring>
 
 // Constructor
@@ -57,49 +58,27 @@ int16_t HeadTable::getFontDirectionHint() const { return fontDirectionHint; }
 int16_t HeadTable::getIndexToLocFormat() const { return indexToLocFormat; }
 int16_t HeadTable::getGlyphDataFormat() const { return glyphDataFormat; }
 
-// Endian conversion functions
-uint16_t HeadTable::convertEndian16(uint16_t value) {
-    return (value >> 8) | (value << 8);
-}
-
-uint32_t HeadTable::convertEndian32(uint32_t value) {
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
-}
-
-uint64_t HeadTable::convertEndian64(uint64_t value) {
-    return ((value >> 56) & 0x00000000000000FF) |
-           ((value >> 40) & 0x000000000000FF00) |
-           ((value >> 24) & 0x0000000000FF0000) |
-           ((value >> 8)  & 0x00000000FF000000) |
-           ((value << 8)  & 0x000000FF00000000) |
-           ((value << 24) & 0x0000FF0000000000) |
-           ((value << 40) & 0x00FF000000000000) |
-           ((value << 56) & 0xFF00000000000000);
-}
-
 // Parse function
 HeadTable HeadTable::parseHeadDirectory(const std::vector<char>& data, uint16_t headTableOffset) {
-    uint32_t version = convertEndian32(*reinterpret_cast<const uint32_t*>(&data[headTableOffset]));
-    uint32_t fontRevision = convertEndian32(*reinterpret_cast<const uint32_t*>(&data[headTableOffset + 4]));
-    uint32_t checkSumAdjustment = convertEndian32(*reinterpret_cast<const uint32_t*>(&data[headTableOffset + 8]));
-    uint32_t magicNumber = convertEndian32(*reinterpret_cast<const uint32_t*>(&data[headTableOffset + 12]));
-    uint16_t flags = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[headTableOffset + 16]));
-    uint16_t unitsPerEm = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[headTableOffset + 18]));
-    int64_t created = convertEndian64(*reinterpret_cast<const uint64_t*>(&data[headTableOffset + 20]));
-    int64_t modified = convertEndian64(*reinterpret_cast<const uint64_t*>(&data[headTableOffset + 28]));
-    int16_t xMin = convertEndian16(*reinterpret_cast<const int16_t*>(&data[headTableOffset + 36]));
-    int16_t yMin = convertEndian16(*reinterpret_cast<const int16_t*>(&data[headTableOffset + 38]));
-    int16_t xMax = convertEndian16(*reinterpret_cast<const int16_t*>(&data[headTableOffset + 40]));
-    int16_t yMax = convertEndian16(*reinterpret_cast<const int16_t*>(&data[headTableOffset + 42]));
-    uint16_t macStyle = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[headTableOffset + 44]));
-    uint16_t lowestRecPPEM = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[headTableOffset + 46]));
-    int16_t fontDirectionHint = convertEndian16(*reinterpret_cast<const int16_t*>(&data[headTableOffset + 48]));
-    int16_t indexToLocFormat = convertEndian16(*reinterpret_cast<const int16_t*>(&data[headTableOffset + 50]));
-    int16_t glyphDataFormat = convertEndian16(*reinterpret_cast<const int16_t*>(&data[headTableOffset + 52]));
-
+    int offset = headTableOffset;
+    uint32_t version = read4Bytes(data, offset);
+    uint32_t fontRevision = read4Bytes(data, offset);
+    uint32_t checkSumAdjustment = read4Bytes(data, offset);
+    uint32_t magicNumber = read4Bytes(data, offset);
+    uint16_t flags = read2Bytes(data, offset);
+    uint16_t unitsPerEm = read2Bytes(data, offset);
+    int64_t created = read8Bytes(data, offset);
+    int64_t modified = read8Bytes(data, offset);
+    int16_t xMin = read2Bytes(data, offset);
+    int16_t yMin = read2Bytes(data, offset);
+    int16_t xMax = read2Bytes(data, offset);
+    int16_t yMax = read2Bytes(data, offset);
+    uint16_t macStyle = read2Bytes(data, offset);
+    uint16_t lowestRecPPEM = read2Bytes(data, offset);
+    int16_t fontDirectionHint = read2Bytes(data, offset);
+    int16_t indexToLocFormat = read2Bytes(data, offset);
+    int16_t glyphDataFormat = read2Bytes(data, offset);
+    
     return HeadTable(
         version,
         fontRevision,

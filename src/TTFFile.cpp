@@ -2,10 +2,12 @@
 #include "Helpers.h"
 #include <iostream>
 
+using namespace std;
+
 TTFFile::TTFFile(
     TTFHeader header,
-    std::vector<TTFTable*> tables,
-    std::vector<uint32_t> locas,
+    vector<TTFTable*> tables,
+    vector<uint32_t> locas,
     HeadTable headTable,
     CmapTable cmapTable,
     MaxpTable maxpTable,
@@ -26,53 +28,21 @@ TTFFile::TTFFile(
     locaOffset(locaOffset),
     maxpOffset(maxpOffset) {}
 
-TTFHeader TTFFile::getHeader() const {
-    return header;
-}
-
-std::vector<TTFTable*> TTFFile::getTables() const {
-    return tables;
-}
-
-std::vector<uint32_t> TTFFile::getLocas() const {
-    return locas;
-}
-
-HeadTable TTFFile::getHeadTable() const {
-    return headTable;
-}
-
-CmapTable TTFFile::getCmapTable() const {
-    return cmapTable;
-}
-
-MaxpTable TTFFile::getMaxpTable() const {
-    return maxpTable;
-}
-
-uint16_t TTFFile::getCmapOffset() const {
-    return cmapOffset;
-}
-
-uint16_t TTFFile::getGlyfOffset() const {
-    return glyfOffset;
-}
-
-uint16_t TTFFile::getHeadOffset() const {
-    return headOffset;
-}
-
-uint16_t TTFFile::getLocaOffset() const {
-    return locaOffset;
-}
-
-uint16_t TTFFile::getMaxpOffset() const {
-    return maxpOffset;
-}
+TTFHeader TTFFile::getHeader() const { return header; }
+vector<TTFTable*> TTFFile::getTables() const { return tables; }
+vector<uint32_t> TTFFile::getLocas() const { return locas; }
+HeadTable TTFFile::getHeadTable() const { return headTable; }
+CmapTable TTFFile::getCmapTable() const { return cmapTable; }
+MaxpTable TTFFile::getMaxpTable() const { return maxpTable; }
+uint16_t TTFFile::getCmapOffset() const { return cmapOffset; }
+uint16_t TTFFile::getGlyfOffset() const { return glyfOffset; }
+uint16_t TTFFile::getHeadOffset() const { return headOffset; }
+uint16_t TTFFile::getLocaOffset() const { return locaOffset; }
+uint16_t TTFFile::getMaxpOffset() const { return maxpOffset; }
 
 TTFFile TTFFile::parse(const std::vector<char>& data) {
     TTFHeader header = TTFHeader::parse(data);
-    std::vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());
+    vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());
 
     uint32_t cmapOffset = 0;
     uint32_t glyfOffset = 0;
@@ -109,7 +79,7 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
         maxpTable.getNumGlyphs()
     );
 
-    std::vector<uint32_t> locas;
+   vector<uint32_t> locas;
 
     if (indexToLocFormat) {
         const std::vector<uint32_t>& locas32 = locaTable.getOffsets32();
@@ -148,8 +118,9 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint32_t unicode) {
         std::cerr << "Invalid glyph offset: " << glyphOffset << std::endl;
         throw std::out_of_range("Glyph offset out of range");
     }
-
-    return Glyph::parseGlyph(data, glyphOffset);
+    Glyph parsedGlyph = Glyph::parseGlyph(data, glyphOffset);
+    parsedGlyph.addPointsBetween();
+    return parsedGlyph;
 }
 
 std::vector<Glyph> TTFFile::parseGlyphs(const std::vector<char>& data, std::string letters) {

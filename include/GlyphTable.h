@@ -1,6 +1,8 @@
 #pragma once
 #include "TTFTable.h"
 #include "SDL.h"
+#include "MovableLine.h"
+#include "Helpers.h"
 #include <vector>
 
 class Glyph {
@@ -35,7 +37,7 @@ public:
     static Glyph parseSimpleGlyph(const std::vector<char>& data, uint32_t pos, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax);
     static Glyph parseCompoundGlyph(const std::vector<char>& data, uint32_t pos, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax);
     void addPointsBetween();
-    static void drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness);
+    static void drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness, Ray l);
 
 private:
     int16_t numberOfContours;

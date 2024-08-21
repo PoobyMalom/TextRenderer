@@ -1,46 +1,30 @@
 #include <iostream>
 #include "TTFTable.h"
+#include "Helpers.h"
 
-TTFTable::TTFTable(const std::string& tag, uint32_t checksum, uint32_t offset, uint32_t length)
+using namespace std;
+
+TTFTable::TTFTable(const string& tag, uint32_t checksum, uint32_t offset, uint32_t length)
     : tag(tag), checksum(checksum), offset(offset), length(length) {}
 
-std::string TTFTable::getTag() const {
-    return tag;
-}
+string TTFTable::getTag() const { return tag; }
+uint32_t TTFTable::getChecksum() const { return checksum; }
+uint32_t TTFTable::getOffset() const { return offset; }
+uint32_t TTFTable::getLength() const { return length; }
 
-uint32_t TTFTable::getChecksum() const {
-    return checksum;
-}
+vector<TTFTable*> TTFTable::parseTableDirectory(const vector<char>& data, uint16_t numTables) {
+    vector<TTFTable*> tables;
 
-uint32_t TTFTable::getOffset() const {
-    return offset;
-}
-
-uint32_t TTFTable::getLength() const {
-    return length;
-}
-
-std::vector<TTFTable*> TTFTable::parseTableDirectory(const std::vector<char>& data, uint16_t numTables) {
-    std::vector<TTFTable*> tables;
-
-    size_t offset = 12;
+    int offset = 12;
     for (int i = 0; i < numTables; ++i) {
-        std::string tag(data.begin() + offset, data.begin() + offset + 4);
+        string tag(data.begin() + offset, data.begin() + offset + 4);
+        offset += 4;
 
-        uint32_t checksum;
-        uint32_t Tableoffset;
-        uint32_t length;
-
-        memcpy(&checksum, data.data() + offset + 4, 4);
-        memcpy(&Tableoffset, data.data() + offset + 8, 4);
-        memcpy(&length, data.data() + offset + 12, 4);
-
-        checksum = convertEndian32(checksum);
-        Tableoffset = convertEndian32(Tableoffset);
-        length = convertEndian32(length);
+        uint32_t checksum = read4Bytes(data, offset);
+        uint32_t Tableoffset = read4Bytes(data, offset);
+        uint32_t length = read4Bytes(data, offset);
 
         tables.push_back(new TTFTable(tag, checksum, Tableoffset, length));
-        offset += 16;
     }
     return tables;
 }

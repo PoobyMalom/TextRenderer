@@ -44,9 +44,6 @@ private:
         std::vector<uint32_t> startGlyphCodes;
     };
     Format12Data format12Data;
-
-    static uint16_t convertEndian16(uint16_t value);
-    static uint32_t convertEndian32(uint32_t value);
 };
 
 class CmapTable {
@@ -60,7 +57,4 @@ private:
     uint16_t version;
     uint16_t numSubtables;
     std::vector<CmapSubtable> subtables;
-
-    static uint16_t convertEndian16(uint16_t value);
-    static uint32_t convertEndian32(uint32_t value);
 };

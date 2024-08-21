@@ -1,4 +1,5 @@
 #include "MaxpTable.h"
+#include "Helpers.h"
 #include <cstring>
 
 MaxpTable::MaxpTable(
@@ -49,33 +50,23 @@ uint16_t MaxpTable::getMaxComponentElements() const { return maxComponentElement
 uint16_t MaxpTable::getMaxSizeOfInstructions() const { return maxSizeOfInstructions; }
 uint16_t MaxpTable::getMaxComponentDepth() const { return maxComponentDepth; }
 
-uint16_t MaxpTable::convertEndian16(uint16_t value) {
-    return (value >> 8) | (value << 8);
-}
-
-uint32_t MaxpTable::convertEndian32(uint32_t value) {
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
-}
-
 MaxpTable MaxpTable::parseMaxpDirectory(const std::vector<char>& data, uint16_t maxpTableOffset) {
-    uint32_t version = convertEndian32(*reinterpret_cast<const uint32_t*>(&data[maxpTableOffset]));
-    uint16_t numGlyphs = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 4]));
-    uint16_t maxPoints = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 6]));
-    uint16_t maxContours = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 8]));
-    uint16_t maxComponentPoints = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 10]));
-    uint16_t maxComponentContours = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 12]));
-    uint16_t maxZones = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 14]));
-    uint16_t maxTwighlightPoints = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 16]));
-    uint16_t maxStorage = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 18]));
-    uint16_t maxFunctionDefs = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 20]));
-    uint16_t maxInstructionDefs = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 22]));
-    uint16_t maxStackElements = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 24]));
-    uint16_t maxComponentElements = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 26]));
-    uint16_t maxSizeOfInstructions = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 28]));
-    uint16_t maxComponentDepth = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[maxpTableOffset + 30]));
+    int pos = maxpTableOffset;
+    uint32_t version = read4Bytes(data, pos);
+    uint16_t numGlyphs = read2Bytes(data, pos);
+    uint16_t maxPoints = read2Bytes(data, pos);
+    uint16_t maxContours = read2Bytes(data, pos);
+    uint16_t maxComponentPoints = read2Bytes(data, pos);
+    uint16_t maxComponentContours = read2Bytes(data, pos);
+    uint16_t maxZones = read2Bytes(data, pos);
+    uint16_t maxTwighlightPoints = read2Bytes(data, pos);
+    uint16_t maxStorage = read2Bytes(data, pos);
+    uint16_t maxFunctionDefs = read2Bytes(data, pos);
+    uint16_t maxInstructionDefs = read2Bytes(data, pos);
+    uint16_t maxStackElements = read2Bytes(data, pos);
+    uint16_t maxComponentElements = read2Bytes(data, pos);
+    uint16_t maxSizeOfInstructions = read2Bytes(data, pos);
+    uint16_t maxComponentDepth = read2Bytes(data, pos);
 
     return MaxpTable(
         version,

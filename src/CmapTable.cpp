@@ -1,4 +1,5 @@
 #include "CmapTable.h"
+#include "Helpers.h"
 #include <vector>
 #include <cstdint>
 #include <iostream>
@@ -22,66 +23,40 @@ CmapSubtable::CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t fo
     }
 
 void CmapSubtable::parseFormat0(const std::vector<char>& data, uint32_t offset) {
-    uint32_t pos = offset + 6;
+    int pos = offset + 6;
     for (int i = 0; i < 256; ++i) {
-        format0Data.glyphIndexArray.push_back(*reinterpret_cast<const uint8_t*>(&data[pos]));
-        pos += 1;
+        format0Data.glyphIndexArray.push_back(readByte(data, pos));
     }
 }
-
 void CmapSubtable::parseFormat4(const std::vector<char>& data, uint32_t offset) {
-    uint32_t pos = offset + 6;
-    format4Data.segCountX2 = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    pos += 6;
-    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
-        uint16_t endCode = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        format4Data.endCodes.push_back(endCode);
-        pos += 2;
-    }
+    int pos = offset + 6;
+    format4Data.segCountX2 = read2Bytes(data, pos);
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.endCodes.push_back(read2Bytes(data, pos)); }
     pos += 2;
-    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
-        uint16_t startCode = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        format4Data.startCodes.push_back(startCode);
-        pos += 2;
-    }
-    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
-        int16_t idDelta = CmapSubtable::convertEndian16(*reinterpret_cast<const int16_t*>(&data[pos]));
-        format4Data.idDeltas.push_back(idDelta);
-        pos += 2;
-    }
-    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
-        uint16_t idRangeOffset = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        format4Data.idRangeOffsets.push_back(idRangeOffset);
-        pos += 2;
-    }
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.startCodes.push_back(read2Bytes(data, pos)); }
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.idDeltas.push_back(read2Bytes(data, pos)); }
+    for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.idRangeOffsets.push_back(read2Bytes(data, pos)); }
     uint16_t glyphIDArrayLength = 0;
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) {
         if (format4Data.idRangeOffsets[i] != 0) {
             glyphIDArrayLength += format4Data.endCodes[i] - format4Data.startCodes[i] + 1;
         }
     }
-    for (int i = 0; i < glyphIDArrayLength; ++i) {
-        uint16_t glyphID = CmapSubtable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        format4Data.glyphIdArray.push_back(glyphID);
-        pos += 2;
-    }
+    for (int i = 0; i < glyphIDArrayLength; ++i) { format4Data.glyphIdArray.push_back(read2Bytes(data, pos)); }
 }
-
 void CmapSubtable::parseFormat12(const std::vector<char>& data, uint32_t offset) {
-    uint32_t pos = offset + 12;
-    format12Data.nGroups = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
+    int pos = offset + 12;
+    format12Data.nGroups = read4Bytes(data, pos);
     pos += 4;
     format12Data.startCharCodes.resize(format12Data.nGroups);
     format12Data.endCharCodes.resize(format12Data.nGroups);
     format12Data.startGlyphCodes.resize(format12Data.nGroups);
 
     for (int i = 0; i < format12Data.nGroups; ++i) {
-        format12Data.startCharCodes[i] = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
-        pos += 4;
-        format12Data.endCharCodes[i] = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
-        pos += 4;
-        format12Data.startGlyphCodes[i] = CmapSubtable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
-        pos += 4;
+        format12Data.startCharCodes[i] = read4Bytes(data, pos);
+        format12Data.endCharCodes[i] = read4Bytes(data, pos);
+        format12Data.startGlyphCodes[i] = read4Bytes(data, pos);
+
     }
 }
 
@@ -121,27 +96,24 @@ uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
 }
 
 CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
-    uint32_t pos = offset;
-    version = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    pos += 2;
-    numSubtables = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-    pos += 2;
+    int pos = offset;
+    cout << "cmap constructor offset: " << pos << endl;
+    version = read2Bytes(data, pos);
+    cout << "cmap version: " << version << endl;
+    numSubtables = read2Bytes(data, pos);
+    cout << "cmap subtable count: " << numSubtables << endl;
     for (int i = 0; i < numSubtables; ++i) {
-        uint16_t platformID = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        pos += 2;
-        uint16_t encodingID = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[pos]));
-        pos += 2;
-        uint32_t subtableOffset = CmapTable::convertEndian32(*reinterpret_cast<const uint32_t*>(&data[pos]));
-        pos += 4;
-        uint16_t format = CmapTable::convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset + subtableOffset]));
+        uint16_t platformID = read2Bytes(data, pos);
+        uint16_t encodingID = read2Bytes(data, pos);
+        uint32_t subtableOffset = read4Bytes(data, pos);
+        uint16_t format = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset + subtableOffset]));
+        cout << "cmap table " << i << " platformID: " << platformID << " | encodingID: " << encodingID << " | subtableOffset: " << subtableOffset << "| format: " << format << endl;
         subtables.emplace_back(platformID, encodingID, format, data, offset + subtableOffset);
     }
 
 }
 
-CmapTable CmapTable::parse(const std::vector<char>& data, uint32_t offset) {
-    return CmapTable(data, offset);
-}
+CmapTable CmapTable::parse(const std::vector<char>& data, uint32_t offset) { return CmapTable(data, offset); }
 
 uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // Prioritize Format 12 (UCS-4)
@@ -169,26 +141,4 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     }
     std::runtime_error("could not find glyph");
     return 0;
-}
-
-uint16_t CmapTable::convertEndian16(uint16_t value) {
-    return (value >> 8) | (value << 8);
-}
-
-uint32_t CmapTable::convertEndian32(uint32_t value) {
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
-}
-
-uint16_t CmapSubtable::convertEndian16(uint16_t value) {
-    return (value >> 8) | (value << 8);
-}
-
-uint32_t CmapSubtable::convertEndian32(uint32_t value) {
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
 }
