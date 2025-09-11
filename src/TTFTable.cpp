@@ -41,11 +41,11 @@ vector<TTFTable*> TTFTable::parseTableDirectory(const vector<char>& data, uint16
             calculatedCheckSum = CalcTableChecksum(data, tableOffset, length);
         }
 
-        if (calculatedCheckSum != checksum) {
-            fprintf(stderr, "Table: %s checksum does not match calculated checksum\n", tag.c_str());
-        } else {
-            printf("Table: %s checksum matchs calculated checksum\n", tag.c_str());
-        }
+        // if (calculatedCheckSum != checksum) {
+        //     fprintf(stderr, "Table: %s checksum does not match calculated checksum\n", tag.c_str());
+        // } else {
+        //     printf("Table: %s checksum matchs calculated checksum\n", tag.c_str());
+        // }
 
         tables.push_back(new TTFTable(tag, checksum, tableOffset, length));
     }

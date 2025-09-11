@@ -336,12 +336,11 @@ void Glyph::addPointsBetween() {
     endPtsOfContours = newEndPtsOfContours;
 }
 
-void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int thickness, int screenHeight, Ray ray) {
+void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight,int thickness) {
     vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
 
     int currentContour = 0;
     int contourStartIndex = 0;
-    int numIntersections = 0;
 
     vector<int16_t> xCoordinates = glyph.getXCoordinates();
     vector<int16_t> yCoordinates = glyph.getYCoordinates();
@@ -375,39 +374,8 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             DrawBezier(renderer, point1, controlPoint, point2);
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-            tuple<float, float> roots = {0.0, 0.0}; //calculateQuadraticRoots(point1, controlPoint, point2, ray.y1);
-            float root1 = get<0>(roots);
-            float root2 = get<1>(roots);
-
-            if ((0 <= root1) & (root1 <= 1)) {
-                SDL_Point root1Point = getBezierPoint(point1, controlPoint, point2, root1);
-                if (root1Point.x >= ray.x1) {
-                    // SDL_Rect root1Rect = {root1Point.x, root1Point.y, 5, 5};
-                    // SDL_RenderDrawRect(renderer, &root1Rect);
-                    numIntersections++;
-                }
-            }
-
-            if ((0 <= root2) & (root2 <= 1)) {
-                SDL_Point root2Point = getBezierPoint(point1, controlPoint, point2, root2);
-                if (root2Point.x >= ray.x1) {
-                    // SDL_Rect root2Rect = {root2Point.x, root2Point.y, 5, 5};
-                    // SDL_RenderDrawRect(renderer, &root2Rect);
-                    numIntersections++;
-                }
-            }
-            
         }
     }
-    if (numIntersections % 2 == 1) {
-        //cout << "inside glyph" << endl;
-        //cout << "num intersections mod 2 is: " << (numIntersections & 2) << endl;'
-        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-        SDL_RenderDrawPoint(renderer, ray.x1, ray.y1);
-    } else {
-        //cout << "outside glyph" << endl;
-    }
-    //cout << "Number of intersections: " << numIntersections << endl;
 }
 
 void Glyph::printGlyph() {

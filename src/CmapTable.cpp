@@ -32,7 +32,6 @@ void CmapSubtable::parseFormat4(const std::vector<char>& data, uint32_t offset) 
     int pos = offset + 6;
     format4Data.segCountX2 = read2Bytes(data, pos);
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.endCodes.push_back(read2Bytes(data, pos)); }
-    pos += 2;
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.startCodes.push_back(read2Bytes(data, pos)); }
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.idDeltas.push_back(read2Bytes(data, pos)); }
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.idRangeOffsets.push_back(read2Bytes(data, pos)); }
@@ -47,7 +46,7 @@ void CmapSubtable::parseFormat4(const std::vector<char>& data, uint32_t offset) 
 void CmapSubtable::parseFormat12(const std::vector<char>& data, uint32_t offset) {
     int pos = offset + 12;
     format12Data.nGroups = read4Bytes(data, pos);
-    pos += 4;
+    // DO NOT ADD 4 BYTES TO THE OFFSET HERE READ X BYTES ALREADY DOES IT
     format12Data.startCharCodes.resize(format12Data.nGroups);
     format12Data.endCharCodes.resize(format12Data.nGroups);
     format12Data.startGlyphCodes.resize(format12Data.nGroups);
@@ -119,6 +118,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // Prioritize Format 12 (UCS-4)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 10) {
+            cout << "Using format 12" << endl;
             return subtable.getGlyphIndex(unicodeValue);
             break;
         }
@@ -127,6 +127,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // If no Format 12 found, look for Format 4 (UCS-2)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 1) {
+            cout << "Using format 4" << endl;
             return subtable.getGlyphIndex(unicodeValue);
             break;
         }
@@ -135,6 +136,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // If no Format 4 found, look for Format 0 (Macintosh Roman)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 1 && subtable.getEncodingID() == 0) {
+            cout << "Using format 0" << endl;
             return subtable.getGlyphIndex(unicodeValue);
             break;
         }

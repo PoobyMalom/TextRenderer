@@ -80,6 +80,7 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint32_t unicode) {
     }
 
     uint16_t glyphIndex = cmapTable.getGlyphIndex(unicode);
+    
 
     if (glyphIndex >= locas.size()) {
         std::cerr << "Invalid glyph index: " << glyphIndex << std::endl;
