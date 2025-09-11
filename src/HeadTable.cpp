@@ -59,7 +59,7 @@ int16_t HeadTable::getIndexToLocFormat() const { return indexToLocFormat; }
 int16_t HeadTable::getGlyphDataFormat() const { return glyphDataFormat; }
 
 // Parse function
-HeadTable HeadTable::parseHeadDirectory(const std::vector<char>& data, uint16_t headTableOffset) {
+HeadTable HeadTable::parseHeadDirectory(const std::vector<char>& data, uint32_t headTableOffset) {
     int offset = headTableOffset;
     uint32_t version = read4Bytes(data, offset);
     uint32_t fontRevision = read4Bytes(data, offset);

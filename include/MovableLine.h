@@ -1,7 +1,7 @@
 #ifndef MOVABLELINE_H
 #define MOVABLELINE_H
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 class MovableLine {
 public:

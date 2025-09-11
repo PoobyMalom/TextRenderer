@@ -20,11 +20,11 @@ public:
         HeadTable headTable,
         CmapTable cmapTable,
         MaxpTable maxpTable,
-        uint16_t cmapOffset,
-        uint16_t glyfOffset,
-        uint16_t headOffset,
-        uint16_t locaOffset,
-        uint16_t maxpOffset
+        uint32_t cmapOffset,
+        uint32_t glyfOffset,
+        uint32_t headOffset,
+        uint32_t locaOffset,
+        uint32_t maxpOffset
     );
 
     TTFHeader getHeader() const;
@@ -33,11 +33,11 @@ public:
     HeadTable getHeadTable() const;
     CmapTable getCmapTable() const;
     MaxpTable getMaxpTable() const;
-    uint16_t getCmapOffset() const;
-    uint16_t getGlyfOffset() const;
-    uint16_t getHeadOffset() const;
-    uint16_t getLocaOffset() const;
-    uint16_t getMaxpOffset() const;
+    uint32_t getCmapOffset() const;
+    uint32_t getGlyfOffset() const;
+    uint32_t getHeadOffset() const;
+    uint32_t getLocaOffset() const;
+    uint32_t getMaxpOffset() const;
 
     static TTFFile parse(const std::vector<char>& data);
     Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode);
@@ -50,11 +50,11 @@ private:
     HeadTable headTable;
     CmapTable cmapTable;
     MaxpTable maxpTable;
-    uint16_t cmapOffset;
-    uint16_t glyfOffset;
-    uint16_t headOffset;
-    uint16_t locaOffset;
-    uint16_t maxpOffset;
+    uint32_t cmapOffset;
+    uint32_t glyfOffset;
+    uint32_t headOffset;
+    uint32_t locaOffset;
+    uint32_t maxpOffset;
 };
 
 #endif // TTFFILE_H

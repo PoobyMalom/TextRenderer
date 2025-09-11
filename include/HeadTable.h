@@ -42,7 +42,7 @@ public:
     int16_t getIndexToLocFormat() const;
     int16_t getGlyphDataFormat() const;
 
-    static HeadTable parseHeadDirectory(const std::vector<char>& data, uint16_t headTableOffset);
+    static HeadTable parseHeadDirectory(const std::vector<char>& data, uint32_t headTableOffset);
 
 private:
     uint32_t version;

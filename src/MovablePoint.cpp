@@ -1,5 +1,5 @@
 #include "MovablePoint.h"
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 MovablePoint::MovablePoint(float x, float y)
     : x(x), y(y), dragging(false), offsetX(0), offsetY(0) {}

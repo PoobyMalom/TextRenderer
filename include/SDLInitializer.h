@@ -1,7 +1,7 @@
 #ifndef SDLINITIALIZER_H
 #define SDLINITIALIZER_H
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <iostream>
 
 SDL_Window* initializeWindow(const char* title, int width, int height);

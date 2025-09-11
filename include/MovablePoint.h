@@ -1,7 +1,7 @@
 #ifndef MOVABLEPOINT_H
 #define MOVABLEPOINT_H
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 class MovablePoint {
 public:

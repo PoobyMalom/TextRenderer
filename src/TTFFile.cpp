@@ -11,11 +11,11 @@ TTFFile::TTFFile(
     HeadTable headTable,
     CmapTable cmapTable,
     MaxpTable maxpTable,
-    uint16_t cmapOffset,
-    uint16_t glyfOffset,
-    uint16_t headOffset,
-    uint16_t locaOffset,
-    uint16_t maxpOffset
+    uint32_t cmapOffset,
+    uint32_t glyfOffset,
+    uint32_t headOffset,
+    uint32_t locaOffset,
+    uint32_t maxpOffset
 ) : header(header),
     tables(tables),
     locas(locas),
@@ -34,50 +34,26 @@ vector<uint32_t> TTFFile::getLocas() const { return locas; }
 HeadTable TTFFile::getHeadTable() const { return headTable; }
 CmapTable TTFFile::getCmapTable() const { return cmapTable; }
 MaxpTable TTFFile::getMaxpTable() const { return maxpTable; }
-uint16_t TTFFile::getCmapOffset() const { return cmapOffset; }
-uint16_t TTFFile::getGlyfOffset() const { return glyfOffset; }
-uint16_t TTFFile::getHeadOffset() const { return headOffset; }
-uint16_t TTFFile::getLocaOffset() const { return locaOffset; }
-uint16_t TTFFile::getMaxpOffset() const { return maxpOffset; }
+uint32_t TTFFile::getCmapOffset() const { return cmapOffset; }
+uint32_t TTFFile::getGlyfOffset() const { return glyfOffset; }
+uint32_t TTFFile::getHeadOffset() const { return headOffset; }
+uint32_t TTFFile::getLocaOffset() const { return locaOffset; }
+uint32_t TTFFile::getMaxpOffset() const { return maxpOffset; }
 
 TTFFile TTFFile::parse(const std::vector<char>& data) {
     TTFHeader header = TTFHeader::parse(data);
+    header.parseTables(data);
     vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());
+    TableMap tableMap = header.getTables();
 
-    uint32_t cmapOffset = 0;
-    uint32_t glyfOffset = 0;
-    uint32_t headOffset = 0;
-    uint32_t locaOffset = 0;
-    uint32_t maxpOffset = 0;
-
-    for (int i = 0; i < tables.size(); ++i) {
-        TTFTable* tempTable = tables[i];
-        if (tempTable->getTag() == "cmap") {
-            cmapOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "glyf") {
-            glyfOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "head") {
-            headOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "loca") {
-            locaOffset = tempTable->getOffset();
-        }
-        if (tempTable->getTag() == "maxp") {
-            maxpOffset = tempTable->getOffset();
-        }
+    for (const auto& [tag, ptr] : tableMap) {
+        cout << "TAG: " << tag << endl;
     }
 
-    HeadTable headTable = HeadTable::parseHeadDirectory(data, headOffset);
-    MaxpTable maxpTable = MaxpTable::parseMaxpDirectory(data, maxpOffset);
+    HeadTable headTable = HeadTable::parseHeadDirectory(data, tableMap.at("head")->getOffset());
+    MaxpTable maxpTable = MaxpTable::parseMaxpDirectory(data, tableMap.at("maxp")->getOffset());
     bool indexToLocFormat = static_cast<bool>(headTable.getIndexToLocFormat());
-    LocaTable locaTable = LocaTable::parse(
-        indexToLocFormat, 
-        data, 
-        locaOffset, 
-        maxpTable.getNumGlyphs()
-    );
+    LocaTable locaTable = LocaTable::parse(indexToLocFormat, data, tableMap.at("loca")->getOffset(), maxpTable.getNumGlyphs());
 
    vector<uint32_t> locas;
 
@@ -89,8 +65,13 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
         locas.insert(locas.end(), locas16.begin(), locas16.end());
     }
 
-    CmapTable cmapTable = CmapTable::parse(data, cmapOffset);
-    return TTFFile(header, tables, locas, headTable, cmapTable, maxpTable, cmapOffset, glyfOffset, headOffset, locaOffset, maxpOffset);
+    CmapTable cmapTable = CmapTable::parse(data, tableMap.at("cmap")->getOffset());
+    return TTFFile(header, tables, locas, headTable, cmapTable, maxpTable, 
+                tableMap.at("cmap")->getOffset(), 
+                tableMap.at("glyf")->getOffset(), 
+                tableMap.at("head")->getOffset(), 
+                tableMap.at("loca")->getOffset(), 
+                tableMap.at("maxp")->getOffset());
 }
 
 Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint32_t unicode) {

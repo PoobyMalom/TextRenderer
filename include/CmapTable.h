@@ -53,6 +53,10 @@ public:
     static CmapTable parse(const std::vector<char>& data, uint32_t offset);
     uint16_t getGlyphIndex(uint32_t unicodeValue) const;
 
+    uint16_t getVersion() const { return version; }
+    uint16_t getNumSubtables() const { return numSubtables; }
+    std::vector<CmapSubtable> getSubtables() const { return subtables; }
+
 private:
     uint16_t version;
     uint16_t numSubtables;

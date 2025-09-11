@@ -6,6 +6,7 @@
 #include <vector>
 #include <tuple>
 #include <iostream>
+#include <bitset>
 using namespace std;
 
 Glyph::Glyph(
@@ -204,7 +205,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16
     vector<int16_t> yCoordinatesPush;
     vector<uint32_t> locas = TTFFile::parse(data).getLocas();
     int contourOffset = xCoordinatesPush.size();
-    for (int i = 0; i < glyphIndexs.size(); ++i) {
+    for (u_long i = 0; i < glyphIndexs.size(); ++i) {
         Glyph glyph = Glyph::parseGlyph(data, TTFFile::parse(data).getGlyfOffset() + locas[glyphIndexs[i]]);
         numberOfContours += glyph.getNumberOfContours();
         for (uint16_t endPtsOfContour : glyph.getEndPtsOfContours()) {
@@ -219,7 +220,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16
         }
         vector<int16_t> xCoordinates = glyph.getXCoordinates();
         vector<int16_t> yCoordinates = glyph.getYCoordinates();
-        for (int j = 0; j < xCoordinates.size(); ++j) {
+        for (u_long j = 0; j < xCoordinates.size(); ++j) {
             int16_t xPrime = as[i] * xCoordinates[j] + cs[i] * yCoordinates[j] + argument1s[i];
             int16_t yPrime = bs[i] * xCoordinates[j] + ds[i] * yCoordinates[j] + argument2s[i];
             xCoordinatesPush.push_back(xPrime);
@@ -346,7 +347,7 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
     vector<int16_t> yCoordinates = glyph.getYCoordinates();
 
     vector<uint8_t> flags = glyph.getFlags();
-    for (int j = 0; j < xCoordinates.size(); ++j) {
+    for (u_long j = 0; j < xCoordinates.size(); ++j) {
         uint8_t flag = flags[j];
         if (j > endpoints[currentContour]) {
             contourStartIndex = endpoints[currentContour] + 1;
@@ -360,7 +361,7 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
             };
             SDL_Point controlPoint;
             SDL_Point point2;
-            if (j != endpoints[currentContour] - 1) {
+            if (static_cast<uint16_t>(j) != endpoints[currentContour] - 1) {
                 controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
                 controlPoint.y = static_cast<int>(screenHeight - (yCoordinates[j + 1] * scalingFactor) + yOffset);
                 point2.x = static_cast<int>(xCoordinates[j + 2] * scalingFactor + xOffset);
@@ -378,7 +379,7 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
             float root1 = get<0>(roots);
             float root2 = get<1>(roots);
 
-            if (0 <= root1 & root1 <= 1) {
+            if ((0 <= root1) & (root1 <= 1)) {
                 SDL_Point root1Point = getBezierPoint(point1, controlPoint, point2, root1);
                 if (root1Point.x >= ray.x1) {
                     // SDL_Rect root1Rect = {root1Point.x, root1Point.y, 5, 5};
@@ -387,7 +388,7 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
                 }
             }
 
-            if (0 <= root2 & root2 <= 1) {
+            if ((0 <= root2) & (root2 <= 1)) {
                 SDL_Point root2Point = getBezierPoint(point1, controlPoint, point2, root2);
                 if (root2Point.x >= ray.x1) {
                     // SDL_Rect root2Rect = {root2Point.x, root2Point.y, 5, 5};
@@ -407,4 +408,25 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
         //cout << "outside glyph" << endl;
     }
     //cout << "Number of intersections: " << numIntersections << endl;
+}
+
+void Glyph::printGlyph() {
+    cout << "----------------------------------------------------------------------" << endl;
+    cout << "Number of contours: " << numberOfContours << endl;
+    cout << "xMin: " << xMin << ", yMin: " << yMin << ", xMax: " << xMax << "yMax: " << yMax << endl;
+    cout << "Instruction Length: " << instructionLength << endl;
+
+    cout << "Endpoints of contours: ";
+    for (uint16_t endpt : endPtsOfContours) {
+        cout << endpt << ", ";
+    } cout << endl;
+
+    cout << "Endpoints of contours: ";
+    for (uint8_t inst : instructions) {
+        cout << static_cast<int>(inst) << ", ";
+    } cout << endl;
+
+    for (uint16_t i = 0; i < xCoordinates.size(); i++) {
+        cout << "Point " << i << " X: " << xCoordinates[i] << ", Y: " << yCoordinates[i] << ", Flags: " << bitset<8>(flags[i]) << endl;
+    }
 }

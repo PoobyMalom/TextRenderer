@@ -52,7 +52,7 @@ void CmapSubtable::parseFormat12(const std::vector<char>& data, uint32_t offset)
     format12Data.endCharCodes.resize(format12Data.nGroups);
     format12Data.startGlyphCodes.resize(format12Data.nGroups);
 
-    for (int i = 0; i < format12Data.nGroups; ++i) {
+    for (uint32_t i = 0; i < format12Data.nGroups; ++i) {
         format12Data.startCharCodes[i] = read4Bytes(data, pos);
         format12Data.endCharCodes[i] = read4Bytes(data, pos);
         format12Data.startGlyphCodes[i] = read4Bytes(data, pos);
@@ -82,7 +82,7 @@ uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
         }
     }
     if (format == 12) {
-        for (int i = 0; i < format12Data.nGroups; ++i) {
+        for (uint32_t i = 0; i < format12Data.nGroups; ++i) {
             if (unicodeValue >= format12Data.startCharCodes[i] && unicodeValue <= format12Data.endCharCodes[i]) {
                 return format12Data.startGlyphCodes[i] + (unicodeValue - format12Data.startCharCodes[i]);
             }
@@ -97,11 +97,11 @@ uint32_t CmapSubtable::getGlyphIndex(uint32_t unicodeValue) const {
 
 CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
     int pos = offset;
-    cout << "cmap constructor offset: " << pos << endl;
+    //cout << "cmap constructor offset: " << pos << endl;
     version = read2Bytes(data, pos);
-    cout << "cmap version: " << version << endl;
+    //cout << "cmap version: " << version << endl;
     numSubtables = read2Bytes(data, pos);
-    cout << "cmap subtable count: " << numSubtables << endl;
+    //cout << "cmap subtable count: " << numSubtables << endl;
     for (int i = 0; i < numSubtables; ++i) {
         uint16_t platformID = read2Bytes(data, pos);
         uint16_t encodingID = read2Bytes(data, pos);
