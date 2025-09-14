@@ -38,7 +38,7 @@ public:
     static Glyph parseCompoundGlyph(const std::vector<char>& data, uint32_t pos, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax);
     void addPointsBetween();
     static void drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness);
-    void printGlyph();
+    void printGlyph(bool printEndPoints = true, bool printInstructions = true, bool printCoords = true);
 
 private:
     int16_t numberOfContours;

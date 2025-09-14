@@ -15,6 +15,7 @@ include/SDL2/
 main
 test
 build
+src/fonts
 
 # Ignore directories with build artifacts
 src/*.o
@@ -38,8 +39,8 @@ test/*.o
 .DS_Store
 
 # Ignore generated files from font processing
-fonts/*.ttx
-fonts/*.ttf
+src/fonts/*.ttx
+src/fonts/*.ttf
 
 # Ignore logs and cache files
 *.log

@@ -29,9 +29,16 @@ void CmapSubtable::parseFormat0(const std::vector<char>& data, uint32_t offset) 
     }
 }
 void CmapSubtable::parseFormat4(const std::vector<char>& data, uint32_t offset) {
-    int pos = offset + 6;
+    int pos = offset;
+    format4Data.format = read2Bytes(data, pos);
+    format4Data.length = read2Bytes(data, pos);
+    format4Data.language = read2Bytes(data, pos);
     format4Data.segCountX2 = read2Bytes(data, pos);
+    format4Data.searchRange = read2Bytes(data, pos);
+    format4Data.entrySelector = read2Bytes(data, pos);
+    format4Data.rangeShift = read2Bytes(data, pos);
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.endCodes.push_back(read2Bytes(data, pos)); }
+    format4Data.reservedPad = read2Bytes(data, pos);
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.startCodes.push_back(read2Bytes(data, pos)); }
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.idDeltas.push_back(read2Bytes(data, pos)); }
     for (int i = 0; i < format4Data.segCountX2 / 2; ++i) { format4Data.idRangeOffsets.push_back(read2Bytes(data, pos)); }
@@ -106,7 +113,7 @@ CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
         uint16_t encodingID = read2Bytes(data, pos);
         uint32_t subtableOffset = read4Bytes(data, pos);
         uint16_t format = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset + subtableOffset]));
-        cout << "cmap table " << i << " platformID: " << platformID << " | encodingID: " << encodingID << " | subtableOffset: " << subtableOffset << "| format: " << format << endl;
+        //cout << "cmap table " << i << " platformID: " << platformID << " | encodingID: " << encodingID << " | subtableOffset: " << subtableOffset << "| format: " << format << endl;
         subtables.emplace_back(platformID, encodingID, format, data, offset + subtableOffset);
     }
 
@@ -118,7 +125,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // Prioritize Format 12 (UCS-4)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 10) {
-            cout << "Using format 12" << endl;
+            // cout << "Using format 12" << endl;
             return subtable.getGlyphIndex(unicodeValue);
             break;
         }
@@ -127,7 +134,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // If no Format 12 found, look for Format 4 (UCS-2)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 1) {
-            cout << "Using format 4" << endl;
+            // cout << "Using format 4" << endl;
             return subtable.getGlyphIndex(unicodeValue);
             break;
         }
@@ -136,11 +143,28 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // If no Format 4 found, look for Format 0 (Macintosh Roman)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 1 && subtable.getEncodingID() == 0) {
-            cout << "Using format 0" << endl;
+            // cout << "Using format 0" << endl;
             return subtable.getGlyphIndex(unicodeValue);
             break;
         }
     }
     std::runtime_error("could not find glyph");
     return 0;
+}
+
+void CmapSubtable::printFormat4() {
+    cout << "--------------------------------------------------";
+    cout << "Format: " << format4Data.format << endl;
+    cout << "Length: " << format4Data.length << endl;
+    cout << "Language: " << format4Data.language << endl;
+    cout << "Segment Count * 2: " << format4Data.segCountX2 << endl;
+    cout << "Search Range: " << format4Data.searchRange << endl;
+    cout << "Entry Selector: " << format4Data.entrySelector << endl;
+    cout << "Range Shift: " << format4Data.rangeShift << endl;
+    cout << "Reserve Pad (Should be zero): " << format4Data.reservedPad << endl;
+    cout << "Length of vectors: " << ", End Code: " << format4Data.endCodes.size() << ", Start Code: " << format4Data.startCodes.size() << ", Character Delta: " << format4Data.idDeltas.size() << ", Character Offset: " << format4Data.idRangeOffsets.size() << endl;
+    for (uint16_t i = 0; i < format4Data.segCountX2/2; i++) {
+        cout << "Segment: " << i << ", End Code: " << format4Data.endCodes[i] << ", Start Code: " << format4Data.startCodes[i] << ", Character Delta: " << format4Data.idDeltas[i] << ", Character Offset: " << format4Data.idRangeOffsets[i] << endl;
+    }
+
 }

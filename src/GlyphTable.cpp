@@ -240,7 +240,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16
     int16_t yMin = read2Bytes(data, pos);
     int16_t xMax = read2Bytes(data, pos);
     int16_t yMax = read2Bytes(data, pos);
-
+    
     if (numberOfContours >= 0) {
         return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
     } else {
@@ -348,6 +348,11 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
     vector<uint8_t> flags = glyph.getFlags();
     for (u_long j = 0; j < xCoordinates.size(); ++j) {
         uint8_t flag = flags[j];
+        // Dot Placement Debugging
+        // if (flag & 1) {
+        //     SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        // }
+        // drawCircle(renderer, xCoordinates[j] * scalingFactor + xOffset, screenHeight - (yCoordinates[j] * scalingFactor) + yOffset, 2);
         if (j > endpoints[currentContour]) {
             contourStartIndex = endpoints[currentContour] + 1;
             ++currentContour;
@@ -378,23 +383,29 @@ void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, in
     }
 }
 
-void Glyph::printGlyph() {
+void Glyph::printGlyph(bool printEndPoints, bool printInstructions, bool printCoords) {
     cout << "----------------------------------------------------------------------" << endl;
     cout << "Number of contours: " << numberOfContours << endl;
-    cout << "xMin: " << xMin << ", yMin: " << yMin << ", xMax: " << xMax << "yMax: " << yMax << endl;
+    cout << "xMin: " << xMin << ", yMin: " << yMin << ", xMax: " << xMax << ", yMax: " << yMax << endl;
     cout << "Instruction Length: " << instructionLength << endl;
 
-    cout << "Endpoints of contours: ";
-    for (uint16_t endpt : endPtsOfContours) {
-        cout << endpt << ", ";
-    } cout << endl;
+    if (printEndPoints) {
+        cout << "Endpoints of contours: ";
+        for (uint16_t endpt : endPtsOfContours) {
+            cout << endpt << ", ";
+        } cout << endl;
+    }
 
-    cout << "Endpoints of contours: ";
-    for (uint8_t inst : instructions) {
-        cout << static_cast<int>(inst) << ", ";
-    } cout << endl;
+    if (printInstructions) {
+        cout << "Instructions: ";
+        for (uint8_t inst : instructions) {
+            cout << static_cast<int>(inst) << ", ";
+        } cout << endl;
+    }
 
-    for (uint16_t i = 0; i < xCoordinates.size(); i++) {
-        cout << "Point " << i << " X: " << xCoordinates[i] << ", Y: " << yCoordinates[i] << ", Flags: " << bitset<8>(flags[i]) << endl;
+    if (printCoords) {
+        for (uint16_t i = 0; i < xCoordinates.size(); i++) {
+            cout << "Point " << i << " X: " << xCoordinates[i] << ", Y: " << yCoordinates[i] << ", Flags: " << bitset<8>(flags[i]) << endl;
+        }
     }
 }

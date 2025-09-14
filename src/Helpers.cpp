@@ -47,6 +47,16 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     }
 }
 
+void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
+    for (int w = -radius; w <= radius; w++) {
+        for (int h = -radius; h <= radius; h++) {
+            if (w*w + h*h <= radius*radius) {
+                SDL_RenderDrawPoint(renderer, centerX + w, centerY + h);
+            }
+        }
+    }
+}
+
 vector<uint32_t> stringToUnicode(const string& input) {
     vector<uint32_t> unicodePoints;
     size_t length = input.size();

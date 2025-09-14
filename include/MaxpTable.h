@@ -23,7 +23,7 @@ uint16	maxComponentDepth	levels of recursion, set to 0 if font has only simple g
 class MaxpTable {
 public:
     MaxpTable(
-        uint32_t version,
+        double version,
         uint16_t numGlyphs,
         uint16_t maxPoints,
         uint16_t maxContours,
@@ -40,7 +40,7 @@ public:
         uint16_t maxComponentDepth
     );
 
-    uint32_t getVersion() const;
+    double getVersion() const;
     uint16_t getNumGlyphs() const;
     uint16_t getMaxPoints() const;
     uint16_t getMaxContours() const;
@@ -57,8 +57,9 @@ public:
     uint16_t getMaxComponentDepth() const;    
 
     static MaxpTable parseMaxpDirectory(const std::vector<char>& data, uint16_t maxpTableOffset);
+    void printMaxpTable();
 private:
-    uint32_t version;
+    double version;
     uint16_t numGlyphs;
     uint16_t maxPoints;
     uint16_t maxContours;
@@ -73,7 +74,4 @@ private:
     uint16_t maxComponentElements;
     uint16_t maxSizeOfInstructions;
     uint16_t maxComponentDepth;
-
-    static uint16_t convertEndian16(uint16_t value);
-    static uint32_t convertEndian32(uint32_t value);
 };

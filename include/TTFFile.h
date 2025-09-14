@@ -17,6 +17,7 @@ public:
         TTFHeader header,
         std::vector<TTFTable*> tables,
         std::vector<uint32_t> locas,
+        LocaTable locaTable,
         HeadTable headTable,
         CmapTable cmapTable,
         MaxpTable maxpTable,
@@ -30,6 +31,7 @@ public:
     TTFHeader getHeader() const;
     std::vector<TTFTable*> getTables() const;
     std::vector<uint32_t> getLocas() const;
+    LocaTable getLocaTable() const;
     HeadTable getHeadTable() const;
     CmapTable getCmapTable() const;
     MaxpTable getMaxpTable() const;
@@ -47,6 +49,7 @@ private:
     TTFHeader header;
     std::vector<TTFTable*> tables;
     std::vector<uint32_t> locas;
+    LocaTable locaTable;
     HeadTable headTable;
     CmapTable cmapTable;
     MaxpTable maxpTable;

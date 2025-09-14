@@ -10,6 +10,8 @@ public:
     const std::vector<uint32_t>& getOffsets32() const;
     const std::vector<uint16_t>& getOffsets16() const;
 
+    void printLocaTable();
+
 private:
     bool is32bitFormat;
     std::vector<uint32_t> offsets32;

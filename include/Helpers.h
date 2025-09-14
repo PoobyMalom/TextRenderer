@@ -10,6 +10,7 @@
 using namespace std;
 
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2);
+void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius);
 vector<uint32_t> stringToUnicode(const string& input);
 string hexToAscii(uint32_t value);
 uint32_t findUnicodevector(vector<uint32_t> startCharCodes, vector<uint32_t> endCharCodes, vector<uint32_t> startGlyphCodes, uint16_t value);
