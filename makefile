@@ -16,12 +16,14 @@ OBJDIR := build
 SRCS := main.cpp \
         src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
         src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
-        src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp
+        src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/HheaTable.cpp \
+				src/NameTable.cpp
 
 TEST_SRCS := test.cpp \
              src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
              src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
-             src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp
+             src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/HheaTable.cpp \
+						 src/NameTable.cpp
 
 # Split out main.cpp so its .o/.d stay in project root
 NONMAIN_SRCS := $(filter-out main.cpp,$(SRCS))
@@ -71,3 +73,27 @@ clean:
 
 # Include auto-generated dependency files (ok if missing)
 -include $(DEPS) $(MAIN_DEP) $(TEST_DEPS) $(TEST_MAIN_DEP)
+
+# ===== Shader test (SDL2 + GLAD) =====
+SHADER_TARGET   := shader-test
+SHADER_SRCS     := shader_test.cpp          # put the sample code in this file
+SHADER_OBJDIR   := build/shader
+SHADER_OBJS     := $(SHADER_SRCS:%.cpp=$(SHADER_OBJDIR)/%.o)
+SHADER_DEPS     := $(SHADER_OBJS:.o=.d)
+
+# Use pkg-config for SDL2 includes/libs. Link GLAD + libGL + libdl on Ubuntu.
+SHADER_CXXFLAGS := -std=c++17 -Wall -Wextra -g -MMD -MP \
+                   $(shell pkg-config --cflags sdl2)
+SHADER_LDFLAGS  := $(shell pkg-config --libs sdl2) -lglad -lGL -ldl
+
+.PHONY: shader-test
+shader-test: $(SHADER_TARGET)
+
+$(SHADER_TARGET): $(SHADER_OBJS)
+	$(CXX) -o $@ $^ $(SHADER_LDFLAGS)
+
+$(SHADER_OBJDIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(SHADER_CXXFLAGS) -c $< -o $@
+
+-include $(SHADER_DEPS)

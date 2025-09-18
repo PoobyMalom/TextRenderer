@@ -8,6 +8,8 @@
 #include "MaxpTable.h"
 #include "LocaTable.h"
 #include "GlyphTable.h"
+#include "HheaTable.h"
+#include "NameTable.h"
 #include <vector>
 #include <string>
 
@@ -21,6 +23,7 @@ public:
         HeadTable headTable,
         CmapTable cmapTable,
         MaxpTable maxpTable,
+        HheaTable hheaTable,
         uint32_t cmapOffset,
         uint32_t glyfOffset,
         uint32_t headOffset,
@@ -35,6 +38,7 @@ public:
     HeadTable getHeadTable() const;
     CmapTable getCmapTable() const;
     MaxpTable getMaxpTable() const;
+    HheaTable getHheaTable() const;
     uint32_t getCmapOffset() const;
     uint32_t getGlyfOffset() const;
     uint32_t getHeadOffset() const;
@@ -53,6 +57,7 @@ private:
     HeadTable headTable;
     CmapTable cmapTable;
     MaxpTable maxpTable;
+    HheaTable hheaTable;
     uint32_t cmapOffset;
     uint32_t glyfOffset;
     uint32_t headOffset;

@@ -231,3 +231,15 @@ uint32_t calculateHeadChecksum(const std::vector<char>& data, uint32_t headOffse
     uint32_t calc = sum_be_words(copy.data(), headLength);
     return calc;
 }
+
+string readPascalString(const vector<char>& data, int& offset) {
+    int pos = offset;
+    uint8_t pascalLength = readByte(data, pos);
+    string pascalString;
+
+    for (uint8_t i = 0; i < pascalLength; i++) {
+        pascalString += static_cast<char>(readByte(data, pos));
+    }
+
+    return pascalString;
+}

@@ -15,6 +15,7 @@
 #include "MaxpTable.h"
 #include "CmapTable.h"
 #include "LocaTable.h"
+#include "HheaTable.h"
 #include "GlyphTable.h"
 #include "TTFFile.h"
 #include "Helpers.h"
@@ -33,7 +34,7 @@ const int CANVAS_HEIGHT = 10000;
 
 int main() {
     // Open the file in binary mode
-    ifstream file("src/fonts/Monsieur_La_Doulaise/MonsieurLaDoulaise-Regular.ttf", ios::binary);
+    ifstream file("src/fonts/JetBrainsMono-Bold.ttf", ios::binary);
     file.seekg(0, ios::end);
     streampos fileSize = file.tellg();
     file.seekg(0, ios::beg);
@@ -47,8 +48,11 @@ int main() {
     file.read(buffer.data(), fileSize);
 
     TTFFile ttfFile = TTFFile::parse(buffer);
+
+    ttfFile.getHheaTable().printHheaDirectory();
+    ttfFile.getMaxpTable().printMaxpTable();
     
-    string textToRender =  "H"; 
+    string textToRender =  "Hello"; 
     
     vector<Glyph> glyphs;
     try {

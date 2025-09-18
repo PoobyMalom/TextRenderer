@@ -12,6 +12,7 @@ TTFFile::TTFFile(
     HeadTable headTable,
     CmapTable cmapTable,
     MaxpTable maxpTable,
+    HheaTable hheaTable,
     uint32_t cmapOffset,
     uint32_t glyfOffset,
     uint32_t headOffset,
@@ -24,6 +25,7 @@ TTFFile::TTFFile(
     headTable(headTable),
     cmapTable(cmapTable),
     maxpTable(maxpTable),
+    hheaTable(hheaTable),
     cmapOffset(cmapOffset),
     glyfOffset(glyfOffset),
     headOffset(headOffset),
@@ -37,6 +39,7 @@ LocaTable TTFFile::getLocaTable() const { return locaTable; }
 HeadTable TTFFile::getHeadTable() const { return headTable; }
 CmapTable TTFFile::getCmapTable() const { return cmapTable; }
 MaxpTable TTFFile::getMaxpTable() const { return maxpTable; }
+HheaTable TTFFile::getHheaTable() const { return hheaTable; }
 uint32_t TTFFile::getCmapOffset() const { return cmapOffset; }
 uint32_t TTFFile::getGlyfOffset() const { return glyfOffset; }
 uint32_t TTFFile::getHeadOffset() const { return headOffset; }
@@ -51,9 +54,9 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     TableMap tableMap = header.getTables();
 
     // (Optional) tag dump
-    // for (const auto& [tag, ptr] : tableMap) {
-    //     std::cout << "TAG: " << tag << std::endl;
-    // }
+    for (const auto& [tag, ptr] : tableMap) {
+        std::cout << "TAG: " << tag << std::endl;
+    }
 
     // Convenience accessor for required tables (will throw if missing)
     auto& headTbl = *tableMap.at("head");
@@ -61,10 +64,14 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     auto& locaTbl = *tableMap.at("loca");
     auto& glyfTbl = *tableMap.at("glyf");
     auto& cmapTbl = *tableMap.at("cmap");
+    auto& hheaTbl = *tableMap.at("hhea");
+    auto& nameTbl = *tableMap.at("name");
 
     // Parse required tables
     HeadTable headTable = HeadTable::parseHeadDirectory(data, headTbl.getOffset());
     MaxpTable maxpTable = MaxpTable::parseMaxpDirectory(data, maxpTbl.getOffset());
+    HheaTable hheaTable = HheaTable::parseHheaDirectory(data, hheaTbl.getOffset());
+    NameTable nameTable = NameTable::parseNameDirectory(data, nameTbl.getOffset());
 
     // indexToLocFormat: 0=short(half offsets), 1=long(byte offsets)
     const bool isLongLoca = (headTable.getIndexToLocFormat() != 0);
@@ -105,6 +112,7 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
         headTable,
         cmapTable,
         maxpTable,
+        hheaTable,
         /* cmap  */ cmapTbl.getOffset(),
         /* glyf  */ glyfTbl.getOffset(),
         /* head  */ headTbl.getOffset(),
