@@ -10,6 +10,7 @@
 #include "GlyphTable.h"
 #include "HheaTable.h"
 #include "NameTable.h"
+#include "PostTable.h"
 #include <vector>
 #include <string>
 

@@ -233,13 +233,11 @@ uint32_t calculateHeadChecksum(const std::vector<char>& data, uint32_t headOffse
 }
 
 string readPascalString(const vector<char>& data, int& offset) {
-    int pos = offset;
-    uint8_t pascalLength = readByte(data, pos);
+    int pascalLength = readByte(data, offset);
     string pascalString;
 
     for (uint8_t i = 0; i < pascalLength; i++) {
-        pascalString += static_cast<char>(readByte(data, pos));
+        pascalString += static_cast<char>(readByte(data, offset));
     }
-
     return pascalString;
 }

@@ -4,6 +4,7 @@
 #include "MovableLine.h"
 #include "Helpers.h"
 #include <vector>
+#include <map>
 
 class Glyph {
 public:
@@ -52,7 +53,15 @@ private:
     std::vector<uint8_t> flags;
     std::vector<int16_t> xCoordinates;
     std::vector<int16_t> yCoordinates;
-
-    static uint16_t convertEndian16(uint16_t value);
-    static uint32_t convertEndian32(uint32_t value);
 };
+
+struct GlyphName {
+    uint16_t index;
+    std::string name;
+    
+    GlyphName(uint16_t idx, const std::string& n) : index(idx), name(n) {}
+};
+
+std::vector<GlyphName> readAdobeGlyphList(const std::string& filename);
+void loadStandardGlyphNamesMap(const std::string& filename, std::map<uint16_t, string>& standardGlyphMap);
+string getStandardGlyphNameFast(uint16_t index, map<uint16_t, string>& standardGlyphMap);

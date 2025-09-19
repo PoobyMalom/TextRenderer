@@ -6,7 +6,10 @@
 #include <vector>
 #include <tuple>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <bitset>
+#include <map>
 using namespace std;
 
 Glyph::Glyph(
@@ -408,4 +411,52 @@ void Glyph::printGlyph(bool printEndPoints, bool printInstructions, bool printCo
             cout << "Point " << i << " X: " << xCoordinates[i] << ", Y: " << yCoordinates[i] << ", Flags: " << bitset<8>(flags[i]) << endl;
         }
     }
+}
+
+std::vector<GlyphName> readAdobeGlyphList(const std::string& filename) {
+    std::vector<GlyphName> glyphNames;
+    std::ifstream file(filename);
+    
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return glyphNames;
+    }
+    
+    std::string line;
+    while (std::getline(file, line)) {
+        // Skip empty lines
+        if (line.empty()) continue;
+        
+        std::stringstream ss(line);
+        std::string indexStr, name;
+        
+        // Read index and name separated by tab or space
+        if (ss >> indexStr >> name) {
+            try {
+                uint16_t index = static_cast<uint16_t>(std::stoi(indexStr));
+                glyphNames.emplace_back(index, name);
+            } catch (const std::exception& e) {
+                std::cerr << "Error parsing line: " << line << std::endl;
+            }
+        }
+    }
+    
+    file.close();
+    std::cout << "Loaded " << glyphNames.size() << " glyph names" << std::endl;
+    return glyphNames;
+}
+
+void loadStandardGlyphNamesMap(const std::string& filename, map<uint16_t, string>& standardGlyphMap) {
+    auto glyphNames = readAdobeGlyphList(filename);
+    for (const auto& glyph : glyphNames) {
+        standardGlyphMap[glyph.index] = glyph.name;
+    }
+}
+
+string getStandardGlyphNameFast(uint16_t index, map<uint16_t, string>& standardGlyphMap) {
+    auto it = standardGlyphMap.find(index);
+    if (it != standardGlyphMap.end()) {
+        return it->second;
+    }
+    return ".notdef";
 }
