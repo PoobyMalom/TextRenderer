@@ -48,6 +48,8 @@ int main() {
     file.read(buffer.data(), fileSize);
 
     TTFFile ttfFile = TTFFile::parse(buffer);
+
+    ttfFile.getHheaTable().printHheaDirectory();
     
     string textToRender =  "Hello"; 
     

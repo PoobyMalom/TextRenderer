@@ -11,6 +11,7 @@
 #include "HheaTable.h"
 #include "NameTable.h"
 #include "PostTable.h"
+#include "HmtxTable.h"
 #include <vector>
 #include <string>
 
