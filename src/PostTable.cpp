@@ -96,7 +96,7 @@ PostTable PostTable::parsePostDirectory(const vector<char>& data, uint32_t postT
   } else {
     cerr << "Unsupported Post Table Format" << endl;
   }
-  table.printPostTable();
+  //table.printPostTable();
   return table;
 };
 

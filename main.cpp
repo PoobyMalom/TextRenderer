@@ -34,7 +34,7 @@ const int CANVAS_HEIGHT = 10000;
 
 int main() {
     // Open the file in binary mode
-    ifstream file("src/fonts/JetBrainsMono-Bold.ttf", ios::binary);
+    ifstream file("src/fonts/WalterTurncoat-Regular.ttf", ios::binary);
     file.seekg(0, ios::end);
     streampos fileSize = file.tellg();
     file.seekg(0, ios::beg);
@@ -43,14 +43,11 @@ int main() {
         cerr << "File is too small to read a uint32_t value." << endl;
         return 1;
     }
-
     vector<char> buffer(fileSize);
     file.read(buffer.data(), fileSize);
-
+    
     TTFFile ttfFile = TTFFile::parse(buffer);
 
-    ttfFile.getHheaTable().printHheaDirectory();
-    
     string textToRender =  "Hello"; 
     
     vector<Glyph> glyphs;

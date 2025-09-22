@@ -68,6 +68,7 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     auto& nameTbl = *tableMap.at("name");
     auto& postTbl = *tableMap.at("post");
     auto& hmtxTbl = *tableMap.at("hmtx");
+    auto& kernTbl = *tableMap.at("kern");
 
     // Parse required tables
     HeadTable headTable = HeadTable::parseHeadDirectory(data, headTbl.getOffset());
@@ -76,6 +77,7 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     NameTable nameTable = NameTable::parseNameDirectory(data, nameTbl.getOffset());
     PostTable postTable = PostTable::parsePostDirectory(data, postTbl.getOffset());
     HmtxTable hmtxTable = HmtxTable::parseHmtxDirectory(data, hmtxTbl.getOffset(), hheaTable.getNumOfLongHorMetrics(), maxpTable.getNumGlyphs());
+    KernTable::parseKernDirectory(data, kernTbl.getOffset());
 
     // indexToLocFormat: 0=short(half offsets), 1=long(byte offsets)
     const bool isLongLoca = (headTable.getIndexToLocFormat() != 0);

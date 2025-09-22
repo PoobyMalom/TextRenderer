@@ -12,6 +12,7 @@
 #include "NameTable.h"
 #include "PostTable.h"
 #include "HmtxTable.h"
+#include "KernTable.h"
 #include <vector>
 #include <string>
 
