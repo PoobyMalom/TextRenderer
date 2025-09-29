@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cstring>
+#include <algorithm>
 
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2) {
     // Check if the control point is collinear with the start and end points
@@ -240,4 +241,59 @@ string readPascalString(const vector<char>& data, int& offset) {
         pascalString += static_cast<char>(readByte(data, offset));
     }
     return pascalString;
+}
+
+// Normalize to NDC [-1,+1] with uniform scale (aspect preserved).
+// 'margin' is a fraction of the glyph's larger dimension (e.g. 0.05 = 5%).
+// If your input Y is "up" already (as in TrueType units), leave flipY=false.
+// If it's screen-style Y-down, set flipY=true to flip around the bbox center.
+std::vector<Line> normalizeToNDC(const std::vector<Line>& segs, float margin, bool flipY) {
+    std::vector<Line> out;
+    if (segs.empty()) return out;
+
+    // 1) Compute bounds
+    float minX =  std::numeric_limits<float>::infinity();
+    float minY =  std::numeric_limits<float>::infinity();
+    float maxX = -std::numeric_limits<float>::infinity();
+    float maxY = -std::numeric_limits<float>::infinity();
+    for (const auto& s : segs) {
+        minX = std::min({minX, s.ax, s.bx});
+        minY = std::min({minY, s.ay, s.by});
+        maxX = std::max({maxX, s.ax, s.bx});
+        maxY = std::max({maxY, s.ay, s.by});
+    }
+
+    cout << "Min X: " << minX << endl;
+    cout << "Min Y: " << minY << endl;
+    cout << "Max X: " << maxX << endl;
+    cout << "Max Y: " << maxY << endl;
+
+    float w = std::max(1e-6f, maxX - minX);
+    float h = std::max(1e-6f, maxY - minY);
+    float cx = (minX + maxX) * 0.5f;
+    float cy = (minY + maxY) * 0.5f;
+
+    // 2) Add margin by inflating the larger dimension
+    float larger = std::max(w, h);
+    float iw = larger * (1.0f + 2.0f * margin);          // inflated width
+    float ih = larger * (1.0f + 2.0f * margin);          // inflated height
+
+    // 3) Uniform scale so the inflated box fits exactly in [-1,+1]
+    float scale = 2.0f / std::max(iw, ih);               // same because iw==ih here
+
+    auto normPt = [&](float x, float y) -> std::pair<float,float> {
+        if (flipY) y = cy - (y - cy);                    // optional vertical flip
+        float xn = (x - cx) * scale;
+        float yn = (y - cy) * scale;
+        return {xn, yn};
+    };
+
+    // 4) Transform all segments
+    out.reserve(segs.size());
+    for (const auto& s : segs) {
+        auto [x1, y1] = normPt(s.ax, s.ay);
+        auto [x2, y2] = normPt(s.bx, s.by);
+        out.push_back({x1, y1, x2, y2});
+    }
+    return out;
 }

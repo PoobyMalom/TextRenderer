@@ -47,6 +47,7 @@ vector<uint8_t> Glyph::getInstructions() const { return instructions; }
 vector<uint8_t> Glyph::getFlags() const { return flags; }
 vector<int16_t> Glyph::getXCoordinates() const { return xCoordinates; }
 vector<int16_t> Glyph::getYCoordinates() const { return yCoordinates; }
+uint16_t Glyph::getGID() const { return gid; };
 
 Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
     int pos = offset;
@@ -459,4 +460,93 @@ string getStandardGlyphNameFast(uint16_t index, map<uint16_t, string>& standardG
         return it->second;
     }
     return ".notdef";
+}
+
+vector<Line> Glyph::getGlyphSegments(int xOffset, int yOffset,
+                                     double scalingFactor,
+                                     int screenHeight)
+{
+    std::vector<Line> segs;
+    
+    const std::vector<uint16_t> endpoints = endPtsOfContours; // last index of each contour
+    const std::vector<int16_t>  xs        = xCoordinates;
+    const std::vector<int16_t>  ys        = yCoordinates;
+    const std::vector<uint8_t>  gflags     = flags;
+    cout << "Here 1" << endl;
+    auto toScreen = [&](int idx) {
+        float sx = static_cast<float>(xs[idx]) * static_cast<float>(scalingFactor) + static_cast<float>(xOffset);
+        float sy = static_cast<float>(screenHeight) - static_cast<float>(ys[idx]) * static_cast<float>(scalingFactor) + static_cast<float>(yOffset);
+        return std::pair<float,float>(sx, sy);
+    };
+
+    auto midpoint = [&](float xA, float yA, float xB, float yB) {
+        return std::pair<float,float>((xA + xB) * 0.5f, (yA + yB) * 0.5f);
+    };
+
+    int contourStart = 0;
+    for (size_t c = 0; c < endpoints.size(); ++c) {
+        const int contourEnd = static_cast<int>(endpoints[c]);   // inclusive
+        const int n          = contourEnd - contourStart + 1;
+        if (n <= 0) { contourStart = contourEnd + 1; continue; }
+
+        // Cache this contour's points in screen space and on-curve flags
+        std::vector<float> px(n), py(n);
+        std::vector<bool>  on(n);
+        for (int i = 0; i < n; ++i) {
+            const int idx = contourStart + i;
+            auto [sx, sy] = toScreen(idx);
+            px[i] = sx; py[i] = sy;
+            on[i] = (gflags[idx] & 0x01) != 0;  // TrueType: bit0 = on-curve
+        }
+
+        // Determine starting "previous on-curve" point:
+        // If first is on-curve, start there.
+        // Else if last is on-curve, start at last.
+        // Else start at implicit on-curve midpoint between last and first off-curve points.
+        float prevX, prevY;
+        int iStart = 0;
+        if (on[0]) {
+            prevX = px[0]; prevY = py[0];
+            iStart = 1;
+        } else if (on[n - 1]) {
+            prevX = px[n - 1]; prevY = py[n - 1];
+            iStart = 0;
+        } else {
+            auto [mx, my] = midpoint(px[n - 1], py[n - 1], px[0], py[0]);
+            prevX = mx; prevY = my;
+            iStart = 0;
+        }
+
+        // Walk the contour once, adding segments between successive on-curve endpoints.
+        int i = iStart;
+        while (i < n) {
+            if (on[i]) {
+                // Explicit on-curve → segment from previous on-curve to this on-curve
+                segs.push_back(Line{prevX, prevY, px[i], py[i]});
+                prevX = px[i]; prevY = py[i];
+                ++i;
+            } else {
+                // Off-curve (quadratic control). Look at the next vertex (wrap to 0).
+                int ni = (i + 1) % n;
+                if (on[ni]) {
+                    // Off-curve followed by on-curve:
+                    // Curve segment endpoints are (prevOn) → (next on-curve).
+                    segs.push_back(Line{prevX, prevY, px[ni], py[ni]});
+                    prevX = px[ni]; prevY = py[ni];
+                    i += 2; // we consumed the next point
+                } else {
+                    // Two consecutive off-curve points:
+                    // Insert implicit on-curve at their midpoint.
+                    auto [mx, my] = midpoint(px[i], py[i], px[ni], py[ni]);
+                    segs.push_back(Line{prevX, prevY, mx, my});
+                    prevX = mx; prevY = my;
+                    ++i; // advance by one; next iter will consider (off,off) pair again
+                }
+            }
+        }
+
+        contourStart = contourEnd + 1;
+    }
+
+    return segs;
 }

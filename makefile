@@ -5,6 +5,19 @@ CXXFLAGS  := -std=c++17 -Wall -g -D_THREAD_SAFE \
              -MMD -MP
 LDFLAGS   := -L/opt/homebrew/lib -lSDL2
 
+# --- Toggleable preprocessing dump ---
+# Set PP=1 to also emit preprocessed .i files next to the objects
+PP ?= 0
+ifeq ($(PP),1)
+  PP_SUFFIX := .i
+  # Helper expands $@ (object path) to a sibling .i with same basename
+  PP_CMD = $(CXX) $(CXXFLAGS) -E $< -o $(basename $@)$(PP_SUFFIX)
+  SHADER_PP_CMD = $(CXX) $(SHADER_CXXFLAGS) -E $< -o $(basename $@)$(PP_SUFFIX)
+else
+  PP_CMD :=
+  SHADER_PP_CMD :=
+endif
+
 # Targets
 TARGET      := main
 TEST_TARGET := test
@@ -17,13 +30,15 @@ SRCS := main.cpp \
         src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
         src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
         src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/HheaTable.cpp \
-				src/NameTable.cpp src/PostTable.cpp src/HmtxTable.cpp src/KernTable.cpp
+				src/NameTable.cpp src/PostTable.cpp src/HmtxTable.cpp src/KernTable.cpp \
+				src/GposTable.cpp
 
 TEST_SRCS := test.cpp \
              src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
              src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
              src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/HheaTable.cpp \
-						 src/NameTable.cpp src/PostTable.cpp src/HmtxTable.cpp src/KernTable.cpp
+						 src/NameTable.cpp src/PostTable.cpp src/HmtxTable.cpp src/KernTable.cpp \
+						 src/GposTable.cpp
 
 # Split out main.cpp so its .o/.d stay in project root
 NONMAIN_SRCS := $(filter-out main.cpp,$(SRCS))
@@ -55,15 +70,18 @@ $(TEST_TARGET): $(TEST_MAIN_OBJ) $(TEST_OBJS)
 # main.cpp -> main.o (and main.d) in root
 $(MAIN_OBJ): main.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(PP_CMD)
 
 # test.cpp -> test.o (and test.d) in root
 $(TEST_MAIN_OBJ): test.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(PP_CMD)
 
 # Any other .cpp -> build/…/.o (and build/…/.d)
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(PP_CMD)
 
 # Housekeeping
 clean:
@@ -76,15 +94,30 @@ clean:
 
 # ===== Shader test (SDL2 + GLAD) =====
 SHADER_TARGET   := shader-test
-SHADER_SRCS     := shader_test.cpp          # put the sample code in this file
+GLAD_DIR        := third_party/glad
 SHADER_OBJDIR   := build/shader
-SHADER_OBJS     := $(SHADER_SRCS:%.cpp=$(SHADER_OBJDIR)/%.o)
-SHADER_DEPS     := $(SHADER_OBJS:.o=.d)
 
-# Use pkg-config for SDL2 includes/libs. Link GLAD + libGL + libdl on Ubuntu.
+# Reuse all sources used by 'test', EXCEPT test.cpp (it has its own main)
+SHADER_SHARED_SRCS := $(filter-out test.cpp,$(TEST_SRCS))
+SHADER_CPP         := shader_test.cpp
+SHADER_GLAD_C      := $(GLAD_DIR)/src/glad.c
+
+# All C++ sources we want for shader-test
+SHADER_ALL_CPP := $(SHADER_SHARED_SRCS) $(SHADER_CPP)
+
+# Objects (mirror folder structure under build/shader/)
+SHADER_OBJS := $(SHADER_ALL_CPP:%.cpp=$(SHADER_OBJDIR)/%.o) \
+               $(SHADER_OBJDIR)/glad.o
+SHADER_DEPS := $(SHADER_OBJS:.o=.d)
+
+CC      := gcc
+CFLAGS  := -Wall -Wextra -g -MMD -MP -I$(GLAD_DIR)/include
+
+# Use pkg-config for SDL2 includes/libs. Also include your project headers.
 SHADER_CXXFLAGS := -std=c++17 -Wall -Wextra -g -MMD -MP \
-                   $(shell pkg-config --cflags sdl2)
-SHADER_LDFLAGS  := $(shell pkg-config --libs sdl2) -lglad -lGL -ldl
+                   $(shell pkg-config --cflags sdl2) \
+                   -I$(GLAD_DIR)/include -Iinclude
+SHADER_LDFLAGS  := $(shell pkg-config --libs sdl2) -lGL -ldl
 
 .PHONY: shader-test
 shader-test: $(SHADER_TARGET)
@@ -92,8 +125,15 @@ shader-test: $(SHADER_TARGET)
 $(SHADER_TARGET): $(SHADER_OBJS)
 	$(CXX) -o $@ $^ $(SHADER_LDFLAGS)
 
+# Generic rule to compile ANY project .cpp into build/shader/…
 $(SHADER_OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(SHADER_CXXFLAGS) -c $< -o $@
+	$(SHADER_PP_CMD)
+
+# Compile GLAD (C file)
+$(SHADER_OBJDIR)/glad.o: $(SHADER_GLAD_C)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 -include $(SHADER_DEPS)

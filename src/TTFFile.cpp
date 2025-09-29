@@ -13,6 +13,7 @@ TTFFile::TTFFile(
     CmapTable cmapTable,
     MaxpTable maxpTable,
     HheaTable hheaTable,
+    HmtxTable hmtxTable,
     uint32_t cmapOffset,
     uint32_t glyfOffset,
     uint32_t headOffset,
@@ -26,6 +27,7 @@ TTFFile::TTFFile(
     cmapTable(cmapTable),
     maxpTable(maxpTable),
     hheaTable(hheaTable),
+    hmtxTable(hmtxTable),
     cmapOffset(cmapOffset),
     glyfOffset(glyfOffset),
     headOffset(headOffset),
@@ -40,11 +42,13 @@ HeadTable TTFFile::getHeadTable() const { return headTable; }
 CmapTable TTFFile::getCmapTable() const { return cmapTable; }
 MaxpTable TTFFile::getMaxpTable() const { return maxpTable; }
 HheaTable TTFFile::getHheaTable() const { return hheaTable; }
+HmtxTable TTFFile::getHmtxTable() const { return hmtxTable; }
 uint32_t TTFFile::getCmapOffset() const { return cmapOffset; }
 uint32_t TTFFile::getGlyfOffset() const { return glyfOffset; }
 uint32_t TTFFile::getHeadOffset() const { return headOffset; }
 uint32_t TTFFile::getLocaOffset() const { return locaOffset; }
 uint32_t TTFFile::getMaxpOffset() const { return maxpOffset; }
+
 
 TTFFile TTFFile::parse(const std::vector<char>& data) {
     // Parse header + table directory
@@ -59,25 +63,40 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     }
 
     // Convenience accessor for required tables (will throw if missing)
-    auto& headTbl = *tableMap.at("head");
-    auto& maxpTbl = *tableMap.at("maxp");
-    auto& locaTbl = *tableMap.at("loca");
-    auto& glyfTbl = *tableMap.at("glyf");
-    auto& cmapTbl = *tableMap.at("cmap");
-    auto& hheaTbl = *tableMap.at("hhea");
-    auto& nameTbl = *tableMap.at("name");
-    auto& postTbl = *tableMap.at("post");
-    auto& hmtxTbl = *tableMap.at("hmtx");
-    auto& kernTbl = *tableMap.at("kern");
+    // Grab required tables (still fine to use at() here if you want hard failures)
+    TTFTable& headTbl = *tableMap.at("head");
+    TTFTable& maxpTbl = *tableMap.at("maxp");
+    TTFTable& locaTbl = *tableMap.at("loca");
+    TTFTable& glyfTbl = *tableMap.at("glyf");
+    TTFTable& cmapTbl = *tableMap.at("cmap");
+    TTFTable& hheaTbl = *tableMap.at("hhea");
+    TTFTable& nameTbl = *tableMap.at("name");
+    TTFTable& postTbl = *tableMap.at("post");
+    TTFTable& hmtxTbl = *tableMap.at("hmtx");
 
-    // Parse required tables
+    // Optional tables: prefer GPOS; fall back to kern
+    TTFTable* gposTbl = nullptr;
+    TTFTable* kernTbl = nullptr;
+
+    if (auto it = tableMap.find("GPOS"); it != tableMap.end()) gposTbl = it->second;
+    if (auto it = tableMap.find("kern"); it != tableMap.end())  kernTbl = it->second;
+
+    // Parse required tables...
     HeadTable headTable = HeadTable::parseHeadDirectory(data, headTbl.getOffset());
     MaxpTable maxpTable = MaxpTable::parseMaxpDirectory(data, maxpTbl.getOffset());
     HheaTable hheaTable = HheaTable::parseHheaDirectory(data, hheaTbl.getOffset());
     NameTable nameTable = NameTable::parseNameDirectory(data, nameTbl.getOffset());
     PostTable postTable = PostTable::parsePostDirectory(data, postTbl.getOffset());
-    HmtxTable hmtxTable = HmtxTable::parseHmtxDirectory(data, hmtxTbl.getOffset(), hheaTable.getNumOfLongHorMetrics(), maxpTable.getNumGlyphs());
-    KernTable::parseKernDirectory(data, kernTbl.getOffset());
+    HmtxTable hmtxTable = HmtxTable::parseHmtxDirectory(
+        data, hmtxTbl.getOffset(), hheaTable.getNumOfLongHorMetrics(), maxpTable.getNumGlyphs());
+
+    // Optional shaping/kerning
+    if (gposTbl) {
+        GposTable::parseGposDirectory(data, gposTbl->getOffset());
+    } else if (kernTbl) {
+        KernTable::parseKernDirectory(data, kernTbl->getOffset());
+    }
+    // else: neither present — that’s valid in some fonts
 
     // indexToLocFormat: 0=short(half offsets), 1=long(byte offsets)
     const bool isLongLoca = (headTable.getIndexToLocFormat() != 0);
@@ -119,6 +138,7 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
         cmapTable,
         maxpTable,
         hheaTable,
+        hmtxTable,
         /* cmap  */ cmapTbl.getOffset(),
         /* glyf  */ glyfTbl.getOffset(),
         /* head  */ headTbl.getOffset(),
@@ -155,6 +175,7 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint32_t unicode) {
     }
     Glyph parsedGlyph = Glyph::parseGlyph(data, glyphOffset);
     parsedGlyph.addPointsBetween();
+    parsedGlyph.gid = glyphIndex;
     return parsedGlyph;
 }
 

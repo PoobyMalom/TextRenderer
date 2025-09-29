@@ -13,6 +13,7 @@
 #include "PostTable.h"
 #include "HmtxTable.h"
 #include "KernTable.h"
+#include "GposTable.h"
 #include <vector>
 #include <string>
 
@@ -27,6 +28,7 @@ public:
         CmapTable cmapTable,
         MaxpTable maxpTable,
         HheaTable hheaTable,
+        HmtxTable htmxTable,
         uint32_t cmapOffset,
         uint32_t glyfOffset,
         uint32_t headOffset,
@@ -42,6 +44,7 @@ public:
     CmapTable getCmapTable() const;
     MaxpTable getMaxpTable() const;
     HheaTable getHheaTable() const;
+    HmtxTable getHmtxTable() const;
     uint32_t getCmapOffset() const;
     uint32_t getGlyfOffset() const;
     uint32_t getHeadOffset() const;
@@ -61,6 +64,7 @@ private:
     CmapTable cmapTable;
     MaxpTable maxpTable;
     HheaTable hheaTable;
+    HmtxTable hmtxTable;
     uint32_t cmapOffset;
     uint32_t glyfOffset;
     uint32_t headOffset;

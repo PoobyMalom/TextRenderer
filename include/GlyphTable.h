@@ -7,6 +7,9 @@
 #include <map>
 
 class Glyph {
+
+friend class TTFFile;
+
 public:
     Glyph(
         int16_t numberOfContours,
@@ -33,6 +36,7 @@ public:
     std::vector<uint8_t> getFlags() const;
     std::vector<int16_t> getXCoordinates() const;
     std::vector<int16_t> getYCoordinates() const;
+    uint16_t getGID() const;
 
     static Glyph parseGlyph(const std::vector<char>& data, uint32_t glyphOffset);
     static Glyph parseSimpleGlyph(const std::vector<char>& data, uint32_t pos, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax);
@@ -40,6 +44,7 @@ public:
     void addPointsBetween();
     static void drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness);
     void printGlyph(bool printEndPoints = true, bool printInstructions = true, bool printCoords = true);
+    vector<Line> getGlyphSegments(int xOffset, int yOffset, double scalingFactor, int screenHeight);
 
 private:
     int16_t numberOfContours;
@@ -53,6 +58,7 @@ private:
     std::vector<uint8_t> flags;
     std::vector<int16_t> xCoordinates;
     std::vector<int16_t> yCoordinates;
+    uint16_t gid;
 };
 
 struct GlyphName {

@@ -34,7 +34,7 @@ const int CANVAS_HEIGHT = 10000;
 
 int main() {
     // Open the file in binary mode
-    ifstream file("src/fonts/WalterTurncoat-Regular.ttf", ios::binary);
+    ifstream file("src/fonts/Monsieur_La_Doulaise/MonsieurLaDoulaise-Regular.ttf", ios::binary);
     file.seekg(0, ios::end);
     streampos fileSize = file.tellg();
     file.seekg(0, ios::beg);
@@ -48,7 +48,7 @@ int main() {
     
     TTFFile ttfFile = TTFFile::parse(buffer);
 
-    string textToRender =  "Hello"; 
+    string textToRender =  "A"; 
     
     vector<Glyph> glyphs;
     try {
@@ -57,7 +57,18 @@ int main() {
         cerr << "Error parsing glyphs: " << e.what() << endl;
         return 1;
     }
-    
+    cout << "HERE" << endl;
+    // Test section, take a glyph and reduce it to lines
+    vector<Line> glyphSegs = glyphs[0].getGlyphSegments(0, 0, 0.5, 600);
+    for (Line line : glyphSegs) {
+        cout << "X1: " << line.ax << ", Y1: " << line.ay << ", X2: " << line.bx << ", Y2: " << line.by << endl;
+    }
+
+    vector<Line> normalizedSegs = normalizeToNDC(glyphSegs, 0, true);
+    for (Line line : normalizedSegs) {
+        cout << "X1: " << line.ax << ", Y1: " << line.ay << ", X2: " << line.bx << ", Y2: " << line.by << endl;
+    }
+
     Uint32 startTime = SDL_GetTicks();
     int frameCount = 0;
 
@@ -143,7 +154,7 @@ int main() {
                 cerr << "Error drawing glyph " << i << ": " << e.what() << endl;
             }
 
-            currentXOffset += ADVANCEWIDTH;
+            currentXOffset += ttfFile.getHmtxTable().getHMetrics()[glyphs[i].getGID()].advanceWidth * scalingFactor;
         }
 
         // Reset the render target to the default window

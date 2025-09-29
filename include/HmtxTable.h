@@ -19,8 +19,8 @@ class HmtxTable {
       vector<int16_t> leftSideBearings
     );
 
-    vector<longHorMetric> getHMetrics() const { return hMetrics; };
-    vector<int16_t> getLeftSideBearings() const { return leftSideBearings; };
+    const vector<longHorMetric>& getHMetrics() const noexcept { return hMetrics; };
+    const vector<int16_t>& getLeftSideBearings() const noexcept { return leftSideBearings; };
 
     static HmtxTable parseHmtxDirectory(const vector<char>& data, 
                              uint32_t hmtxTableOffset, 

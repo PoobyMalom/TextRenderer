@@ -9,6 +9,10 @@
 
 using namespace std;
 
+struct Line {
+    float ax, ay, bx, by;
+};
+
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2);
 void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius);
 vector<uint32_t> stringToUnicode(const string& input);
@@ -31,7 +35,7 @@ string readPascalString(const vector<char>& data, int& offset);
 
 uint32_t CalcTableChecksum(const std::vector<char>& data, uint32_t offset, uint32_t length);
 uint32_t calculateHeadChecksum(const std::vector<char>& data, uint32_t headOffset, uint32_t length);
-
+vector<Line> normalizeToNDC(const std::vector<Line>& segs, float margin = 0.05f, bool flipY = false);
 
 struct Ray {
     int x1;
@@ -39,5 +43,6 @@ struct Ray {
     int x2;
     int y2;
 };
+
 
 #endif // HELPERS_H
