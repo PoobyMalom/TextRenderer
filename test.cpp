@@ -163,6 +163,7 @@ static bool isConvex(Vertex* i0, Vertex* i1, Vertex* i2, bool isCCW) {
 
 static void drawTriangulationTest(SDL_Renderer* renderer, Glyph glyph) {
   // Gets data from the glyph
+  puts("Start of drawTriangle Function");
   vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
   vector<int16_t> xCoordinates = glyph.getXCoordinates();
   vector<int16_t> yCoordinates = glyph.getYCoordinates();
@@ -174,7 +175,7 @@ static void drawTriangulationTest(SDL_Renderer* renderer, Glyph glyph) {
 
   // vector of ears
   vector<Triangle> ears;
-
+  puts("Created vectors");
   // add only on curve points to our vertex list
   for (int i = 0; i < (int)xCoordinates.size(); i++) {
     if (flags[i] & 1) {
@@ -185,16 +186,21 @@ static void drawTriangulationTest(SDL_Renderer* renderer, Glyph glyph) {
       drawCircle(renderer, xCoordinates[i], yCoordinates[i], 4);
     }
   }
+  puts("Created on curve points list");
+
 
   // create the vertex list
   int numVerts = xOnCurve.size();
   Vertex* node = createVertList(xOnCurve, yOnCurve);
+  puts("Created vertex list");
 
   // figure out winding direction
   bool ccw = isCCW(node);
-  
+  puts("Determined Winding Direction");
+
   // main ear clipping loop
   while (numVerts > 2) {
+    printf("Running ear clipping loop with %i vertices left\n", numVerts);
     // current vertices
     Vertex* i0 = node->prev;
     Vertex* i1 = node;
@@ -202,6 +208,7 @@ static void drawTriangulationTest(SDL_Renderer* renderer, Glyph glyph) {
     
     // test convex or reflex triangle
     bool isCvx = isConvex(i0, i1, i2, ccw);
+    puts("Determined tri convex");
 
     // test if convex triangle is an ear
     bool isEar = true;
@@ -211,6 +218,7 @@ static void drawTriangulationTest(SDL_Renderer* renderer, Glyph glyph) {
       while ((testPoint != i0) and isEar) {
         // disqualify a tri if another vertex is in it
         isEar = !PointInTriangle(testPoint, i0, i1, i2);
+        puts("Checked if test point in triangle");
         testPoint = testPoint->next;
       }
     // non convex tris cannot be ears
@@ -222,6 +230,7 @@ static void drawTriangulationTest(SDL_Renderer* renderer, Glyph glyph) {
     if (isEar) {
       ears.push_back({i0->x, i0->y, i1->x, i1->y, i2->x, i2->y});
       node = detachNode(node);
+      puts("Detached node");
       --numVerts;
       SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
       drawTriangle(renderer, i0, i1, i2, 0.5, 500);
@@ -234,7 +243,7 @@ static void drawTriangulationTest(SDL_Renderer* renderer, Glyph glyph) {
 
 int main() {
     // Open the file in binary mode
-    ifstream file("src/fonts/JetBrainsMono-Bold.ttf", ios::binary);
+    ifstream file("src/fonts/papyrus.ttf", ios::binary);
     if (!file) {
         cerr << "Failed to open TTF file.\n";
         return 1;
@@ -258,7 +267,7 @@ int main() {
 
     TTFFile ttfFile = TTFFile::parse(buffer);
 
-    string textToRender = "S";
+    string textToRender = "B";
 
     vector<Glyph> glyphs;
     try {
