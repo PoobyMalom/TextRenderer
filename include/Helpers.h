@@ -9,8 +9,6 @@
 
 using namespace std;
 
-<<<<<<< Updated upstream
-=======
 struct Line {
     float ax, ay, bx, by;
 };
@@ -26,14 +24,8 @@ struct PointNode {
     : x(_x), y(_y), onCurve(_onCurve), prev(nullptr), next(nullptr) {}
 };
 
-struct Triangle {
-  int16_t x1, y1;
-  int16_t x2, y2;
-  int16_t x3, y3;
-};
-
+void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius);
 void drawTriangle(SDL_Renderer* renderer, PointNode* p1, PointNode* p2, PointNode* p3, double scalingFactor, int height);
->>>>>>> Stashed changes
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2);
 vector<uint32_t> stringToUnicode(const string& input);
 string hexToAscii(uint32_t value);

@@ -47,24 +47,22 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     }
 }
 
-<<<<<<< Updated upstream
-=======
-void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
-    for (int w = -radius; w <= radius; w++) {
-        for (int h = -radius; h <= radius; h++) {
-            if (w*w + h*h <= radius*radius) {
-                SDL_RenderDrawPoint(renderer, centerX + w, centerY + h);
-            }
-        }
-    }
-}
-
 inline int toScreenX(int16_t x, double scale) {
     return static_cast<int>(x * scale);
 }
 
 inline int toScreenY(int16_t y, double scale, int height) {
     return static_cast<int>(height - (y * scale) - 50);
+}
+
+void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
+    for (int w = -radius; w <= radius; w++) {
+        for (int h = -radius; h <= radius; h++) {
+            if (w*w + h*h <= radius*radius) {
+                SDL_RenderDrawPoint(renderer, toScreenX(centerX, 0.5) + w, toScreenY(centerY, 0.5, 500) + h);
+            }
+        }
+    }
 }
 
 void drawTriangle(SDL_Renderer* renderer, PointNode* p1, PointNode* p2, PointNode* p3, 
@@ -85,7 +83,6 @@ void drawTriangle(SDL_Renderer* renderer, PointNode* p1, PointNode* p2, PointNod
     SDL_RenderDrawLine(renderer, x3, y3, x1, y1);
 }
 
->>>>>>> Stashed changes
 vector<uint32_t> stringToUnicode(const string& input) {
     vector<uint32_t> unicodePoints;
     size_t length = input.size();
