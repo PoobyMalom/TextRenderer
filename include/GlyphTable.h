@@ -6,6 +6,38 @@
 #include <vector>
 #include <map>
 
+class GlyphPoint {
+
+public:
+    GlyphPoint(
+        int16_t x,
+        int16_t y,
+        uint8_t flag
+    );
+
+private:
+    int16_t x;
+    int16_t y;
+    uint8_t flag;
+};
+
+class Contour {
+
+public:
+    Contour(
+        std::vector<GlyphPoint> points,
+        int parent,
+        std::vector<int> children,
+        double signedArea
+    );
+
+private:
+    std::vector<GlyphPoint> points; // Closed ring (first != last; treat as closed)
+    int parent; // -1 = root (no parent)
+    std::vector<int> children; // index of childern in contours vector
+    double signedArea; // cache (shoelace), for orientation or size
+};
+
 class Glyph {
 
 friend class TTFFile;
@@ -22,7 +54,8 @@ public:
         std::vector<uint8_t> instructions,
         std::vector<uint8_t> flags,
         std::vector<int16_t> xCoordinates,
-        std::vector<int16_t> yCoordinates
+        std::vector<int16_t> yCoordinates,
+        std::vector<Contour> contours
     );
 
     int16_t getNumberOfContours() const;
@@ -58,6 +91,7 @@ private:
     std::vector<uint8_t> flags;
     std::vector<int16_t> xCoordinates;
     std::vector<int16_t> yCoordinates;
+    std::vector<Contour> contours;
     uint16_t gid;
 };
 

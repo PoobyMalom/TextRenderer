@@ -34,7 +34,7 @@ const int CANVAS_HEIGHT = 10000;
 
 int main() {
     // Open the file in binary mode
-    ifstream file("src/fonts/Monsieur_La_Doulaise/MonsieurLaDoulaise-Regular.ttf", ios::binary);
+    ifstream file("src/fonts/papyrus.ttf", ios::binary);
     file.seekg(0, ios::end);
     streampos fileSize = file.tellg();
     file.seekg(0, ios::beg);
@@ -48,7 +48,7 @@ int main() {
     
     TTFFile ttfFile = TTFFile::parse(buffer);
 
-    string textToRender =  "A"; 
+    string textToRender =  "C"; 
     
     vector<Glyph> glyphs;
     try {

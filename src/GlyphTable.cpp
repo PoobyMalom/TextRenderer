@@ -3,6 +3,7 @@
 #include "TTFHeader.h"
 #include "TTFFile.h"
 #include "MovableLine.h"
+#include "GeometryUtils.h"
 #include <vector>
 #include <tuple>
 #include <iostream>
@@ -11,6 +12,24 @@
 #include <bitset>
 #include <map>
 using namespace std;
+
+GlyphPoint::GlyphPoint(
+    int16_t x,
+    int16_t y,
+    uint8_t flag
+) : x(x),
+    y(y),
+    flag(flag) {}
+
+Contour::Contour(
+    vector<GlyphPoint> points,
+    int parent,
+    vector<int> children,
+    double signedArea
+) : points(points),
+    parent(parent),
+    children(children),
+    signedArea(signedArea) {}
 
 Glyph::Glyph(
     int16_t numberOfContours,
@@ -23,7 +42,8 @@ Glyph::Glyph(
     vector<uint8_t> instructions,
     vector<uint8_t> flags,
     vector<int16_t> xCoordinates,
-    vector<int16_t> yCoordinates
+    vector<int16_t> yCoordinates,
+    vector<Contour> contours
 ) : numberOfContours(numberOfContours),
     xMin(xMin),
     yMin(yMin),
@@ -34,7 +54,8 @@ Glyph::Glyph(
     instructions(instructions),
     flags(flags),
     xCoordinates(xCoordinates),
-    yCoordinates(yCoordinates) {}
+    yCoordinates(yCoordinates),
+    contours(contours) {}
 
 int16_t Glyph::getNumberOfContours() const { return numberOfContours; }
 int16_t Glyph::getXMin() const { return xMin; }
@@ -48,6 +69,26 @@ vector<uint8_t> Glyph::getFlags() const { return flags; }
 vector<int16_t> Glyph::getXCoordinates() const { return xCoordinates; }
 vector<int16_t> Glyph::getYCoordinates() const { return yCoordinates; }
 uint16_t Glyph::getGID() const { return gid; };
+
+vector<Contour> generateContours(vector<uint8_t> flags, vector<int16_t> xCoordinates, vector<int16_t> yCoordinates, vector<uint16_t> endPtsOfContours) {
+    int currentContour = 0;
+    int contourStartIndex = 0;
+    
+    vector<Contour> finalContours;
+    vector<GlyphPoint> points;
+    int pointsLength = size(xCoordinates);
+    for (int i = 0; i < pointsLength; i++) {
+        points.push_back(GlyphPoint(xCoordinates[i], yCoordinates[i], flags[i]));
+        if (i > endPtsOfContours[currentContour]) {
+            contourStartIndex = endPtsOfContours[currentContour] + 1;
+            ++currentContour;
+            finalContours.push_back(Contour(points, 0, vector<int>(), 0));
+            points.clear();
+        }
+    }
+
+    return finalContours;
+}
 
 Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
     int pos = offset;
@@ -105,7 +146,10 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t
         yCoordinates.push_back(currentY);
     }
 
-    return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates);
+    vector<Contour> contours = generateContours(flags, xCoordinates, yCoordinates, endPtsOfContours);
+
+
+    return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates, contours);
 }
 
 Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
@@ -233,21 +277,24 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16
         contourOffset += xCoordinatesPush.size();
     }
 
-    return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush);
+    return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush, vector<Contour>());
 }
 
 
     Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
     int pos = offset;
     int16_t numberOfContours = read2Bytes(data, pos);
+    printf("Number of contours: %u\n", numberOfContours);
     int16_t xMin = read2Bytes(data, pos);
     int16_t yMin = read2Bytes(data, pos);
     int16_t xMax = read2Bytes(data, pos);
     int16_t yMax = read2Bytes(data, pos);
     
     if (numberOfContours >= 0) {
+        puts("Simple Glyph");
         return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
     } else {
+        puts("Compound Glyph");
         return Glyph::parseCompoundGlyph(data, pos, xMin, yMin, xMax, yMax);
     }
 

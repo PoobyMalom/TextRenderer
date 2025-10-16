@@ -58,9 +58,9 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
     TableMap tableMap = header.getTables();
 
     // (Optional) tag dump
-    for (const auto& [tag, ptr] : tableMap) {
-        std::cout << "TAG: " << tag << std::endl;
-    }
+    // for (const auto& [tag, ptr] : tableMap) {
+    //     std::cout << "TAG: " << tag << std::endl;
+    // }
 
     // Convenience accessor for required tables (will throw if missing)
     // Grab required tables (still fine to use at() here if you want hard failures)
@@ -150,7 +150,7 @@ TTFFile TTFFile::parse(const std::vector<char>& data) {
 
 Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint32_t unicode) {
     if (unicode == 32) {
-        return Glyph{0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}};
+        return Glyph{0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}, {}};
     }
 
     uint16_t glyphIndex = cmapTable.getGlyphIndex(unicode);    

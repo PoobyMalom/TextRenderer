@@ -9,7 +9,7 @@ void GposTable::parseGposDirectory(const vector<char>& data, uint32_t offset) {
   int pos = offset;
   uint16_t majorVersion = read2Bytes(data, pos);
   uint16_t minorVersion = read2Bytes(data, pos);
-  cout << "GPOS Table Data, Major Verison: " << majorVersion << ", Minor Version: " << minorVersion << endl;
+  //cout << "GPOS Table Data, Major Verison: " << majorVersion << ", Minor Version: " << minorVersion << endl;
   // TODO Figure out how to do version 1 vs 0
   Offset16 scriptListOffset = read2Bytes(data, pos);
   Offset16 featureListOffset = read2Bytes(data, pos);
@@ -20,10 +20,10 @@ void GposTable::parseGposDirectory(const vector<char>& data, uint32_t offset) {
   } else {
     featureVariationsOffset = NULL;
   }
-  cout << "Script List Offset: " << scriptListOffset << endl;
-  cout << "Feature List Offset: " << featureListOffset << endl;
-  cout << "Lookup List Offset: " << lookupListOffset << endl;
-  cout << "Feature Variations Offset: " << featureVariationsOffset << endl;
+  // cout << "Script List Offset: " << scriptListOffset << endl;
+  // cout << "Feature List Offset: " << featureListOffset << endl;
+  // cout << "Lookup List Offset: " << lookupListOffset << endl;
+  // cout << "Feature Variations Offset: " << featureVariationsOffset << endl;
 
   int scriptListPos = offset + scriptListOffset;
   uint16_t scriptCount = read2Bytes(data, scriptListPos);
@@ -39,6 +39,6 @@ void GposTable::parseGposDirectory(const vector<char>& data, uint32_t offset) {
     tag[1] = (scriptTag & 0x00ff0000) >> 16;
     tag[0] = (scriptTag & 0xff000000) >> 24;
 
-    cout << "Script Record " << i << ", Tag: " << tag << ", Offset: " << scriptOffset << endl;
+   // cout << "Script Record " << i << ", Tag: " << tag << ", Offset: " << scriptOffset << endl;
   }
 }

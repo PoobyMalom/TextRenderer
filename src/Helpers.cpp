@@ -48,7 +48,7 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     }
 }
 
-void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius) {
+void drawCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, double scalingFactor, int height) {
     for (int w = -radius; w <= radius; w++) {
         for (int h = -radius; h <= radius; h++) {
             if (w*w + h*h <= radius*radius) {

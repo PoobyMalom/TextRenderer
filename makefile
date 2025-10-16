@@ -31,14 +31,14 @@ SRCS := main.cpp \
         src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
         src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/HheaTable.cpp \
 				src/NameTable.cpp src/PostTable.cpp src/HmtxTable.cpp src/KernTable.cpp \
-				src/GposTable.cpp
+				src/GposTable.cpp src/GeometryUtils.cpp src/VertexList.cpp src/GlyphRenderer.cpp
 
 TEST_SRCS := test.cpp \
              src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
              src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
              src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/HheaTable.cpp \
 						 src/NameTable.cpp src/PostTable.cpp src/HmtxTable.cpp src/KernTable.cpp \
-						 src/GposTable.cpp
+						 src/GposTable.cpp src/GeometryUtils.cpp src/VertexList.cpp src/GlyphRenderer.cpp
 
 # Split out main.cpp so its .o/.d stay in project root
 NONMAIN_SRCS := $(filter-out main.cpp,$(SRCS))
