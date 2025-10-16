@@ -4,13 +4,21 @@ project(FontRenderer CXX C)
 # =========================================
 # Compiler and flags
 # =========================================
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-add_compile_options(-Wall -g -D_THREAD_SAFE)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -g")
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Export compile_commands.json for clang-tidy
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(MSVC)
+  set(PROJECT_WARNINGS /W4 /permissive-)
+else()
+  set(PROJECT_WARNINGS -Wall -Wextra -Wpedantic)
+endif()
 
 # =========================================
 # Output layout: keep repo root clean
@@ -18,18 +26,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
-# =========================================
-# Include paths
-# =========================================
-include_directories(
-    include
-    /opt/homebrew/include/SDL2
-    third_party/glad/include
-)
-
-# Library search path (macOS Homebrew SDL2)
-link_directories(/opt/homebrew/lib)
 
 # =========================================
 # Sources shared by all targets (everything except main/test mains)
@@ -62,26 +58,51 @@ set(SHARED_SRC
 # =========================================
 find_package(PkgConfig REQUIRED)
 pkg_search_module(SDL2 REQUIRED sdl2)
-include_directories(${SDL2_INCLUDE_DIRS})
-link_directories(${SDL2_LIBRARY_DIRS})
+
+if(APPLE)
+  if(EXISTS "/opt/homebrew/include/SDL2")
+    list(APPEND SDL2_INCLUDE_DIRS "/opt/homebrew/include/SDL2")
+  endif()
+  if(EXISTS "/opt/homebrew/lib")
+    list(APPEND SDL2_LIBRARY_DIRS "/opt/homebrew/lib")
+  endif()
+endif()
+
+# =========================================
+# Core library reused by all executables
+# =========================================
+add_library(textrenderer STATIC ${SHARED_SRC})
+target_include_directories(textrenderer
+  PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${SDL2_INCLUDE_DIRS}
+)
+if(SDL2_LIBRARY_DIRS)
+  target_link_directories(textrenderer PUBLIC ${SDL2_LIBRARY_DIRS})
+endif()
+target_link_libraries(textrenderer
+  PUBLIC
+    ${SDL2_LIBRARIES}
+)
+target_compile_features(textrenderer PUBLIC cxx_std_20)
+target_compile_options(textrenderer PRIVATE ${PROJECT_WARNINGS})
+if(APPLE)
+  target_compile_definitions(textrenderer PUBLIC _THREAD_SAFE)
+endif()
 
 # =========================================
 # main
 # =========================================
-add_executable(main
-    main.cpp
-    ${SHARED_SRC}
-)
-target_link_libraries(main ${SDL2_LIBRARIES})
+add_executable(main main.cpp)
+target_link_libraries(main PRIVATE textrenderer)
+target_compile_options(main PRIVATE ${PROJECT_WARNINGS})
 
 # =========================================
 # test
 # =========================================
-add_executable(test
-    test.cpp
-    ${SHARED_SRC}
-)
-target_link_libraries(test ${SDL2_LIBRARIES})
+add_executable(test test.cpp)
+target_link_libraries(test PRIVATE textrenderer)
+target_compile_options(test PRIVATE ${PROJECT_WARNINGS})
 
 # =========================================
 # shader-test (SDL2 + GLAD + OpenGL)
@@ -89,22 +110,23 @@ target_link_libraries(test ${SDL2_LIBRARIES})
 find_package(OpenGL REQUIRED)
 set(GLAD_SRC third_party/glad/src/glad.c)
 
-add_executable(shader-test
-    shader_test.cpp
-    ${SHARED_SRC}
-    ${GLAD_SRC}
-)
-target_include_directories(shader-test PRIVATE
-    ${SDL2_INCLUDE_DIRS}
-    ${OPENGL_INCLUDE_DIRS}
-    third_party/glad/include
-    include
-)
+add_library(glad STATIC ${GLAD_SRC})
+target_include_directories(glad PUBLIC third_party/glad/include)
+target_compile_features(glad PUBLIC c_std_17)
+
+add_executable(shader-test shader_test.cpp)
 target_link_libraries(shader-test
-    ${SDL2_LIBRARIES}
+  PRIVATE
+    textrenderer
+    glad
     ${OPENGL_LIBRARIES}
     dl
 )
+target_include_directories(shader-test
+  PRIVATE
+    ${OPENGL_INCLUDE_DIRS}
+)
+target_compile_options(shader-test PRIVATE ${PROJECT_WARNINGS})
 
 # =========================================
 # Optional preprocessed output (PP=ON)
@@ -166,7 +188,7 @@ if(RUN_CLANG_TIDY_EXE AND CLANG_TIDY_EXE)
     add_custom_target(tidy
         COMMAND ${RUN_CLANG_TIDY_EXE}
                 -p ${CMAKE_BINARY_DIR}
-                -header-filter='^(src|include)/'
+                "-header-filter=^(src|include)/"
                 -quiet
                 ${ALL_USER_FILES}
         COMMENT "Running run-clang-tidy on project sources (excluding third_party)"
@@ -177,7 +199,7 @@ elseif(CLANG_TIDY_EXE)
     add_custom_target(tidy
         COMMAND ${CLANG_TIDY_EXE}
                 -p ${CMAKE_BINARY_DIR}
-                -header-filter=^(src|include)/
+                "-header-filter=^(src|include)/"
                 --quiet
                 ${ALL_USER_FILES}
         COMMENT "Running clang-tidy on project sources (excluding third_party)"
@@ -188,16 +210,18 @@ endif()
 # Optionally attach clang-tidy to targets during build (opt-in)
 if(ENABLE_CLANG_TIDY AND CLANG_TIDY_EXE)
     set(_TIDY_ARGS "-p;${CMAKE_BINARY_DIR};-header-filter=^(src|include)/;--quiet")
+    set_target_properties(textrenderer PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_EXE};${_TIDY_ARGS}")
     set_target_properties(main PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_EXE};${_TIDY_ARGS}")
     set_target_properties(test PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_EXE};${_TIDY_ARGS}")
     set_target_properties(shader-test PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_EXE};${_TIDY_ARGS}")
 endif()
 
 # Keep compile_commands.json easy to find at repo root
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_custom_target(link-compile-commands ALL
+  COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_SOURCE_DIR}/compile_commands.json
   COMMAND ${CMAKE_COMMAND} -E create_symlink
           ${CMAKE_BINARY_DIR}/compile_commands.json
           ${CMAKE_SOURCE_DIR}/compile_commands.json
+  DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
   COMMENT "Symlinking compile_commands.json to project root"
   VERBATIM)
