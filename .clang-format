@@ -1,0 +1,66 @@
+# C++20, compact 2-space style, regrouped/sorted includes, and Stroustrup braces.
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+
+ColumnLimit: 100
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+
+# Braces & layout
+BreakBeforeBraces: Stroustrup
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Alignment
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: AcrossEmptyLinesAndComments
+AlignConsecutiveDeclarations: AcrossEmptyLinesAndComments
+AlignEscapedNewlines: Left
+AlignOperands: true
+
+# Indentation details
+AccessModifierOffset: -2
+NamespaceIndentation: All
+IndentCaseLabels: true
+IndentCaseBlocks: false
+BreakBeforeBinaryOperators: None
+
+# Spacing
+SpaceBeforeParens: ControlStatements
+SpacesInAngles: false
+SpacesInParentheses: false
+Cpp11BracedListStyle: true
+ReflowComments: true
+
+# Pointers/refs
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# Using & includes
+SortUsingDeclarations: true
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<SDL2/.*>'
+    Priority: 1
+    SortPriority: 1
+  - Regex: '^<glad/.*>|^<GL/.*>'
+    Priority: 1
+    SortPriority: 2
+  - Regex: '^<.*>'
+    Priority: 2
+    SortPriority: 10
+  - Regex: '^"textrenderer/.*"'
+    Priority: 3
+    SortPriority: 20
+  - Regex: '^".*"'
+    Priority: 4
+    SortPriority: 30
+
+# Misc
+QualifierAlignment: Left

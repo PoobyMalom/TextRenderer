@@ -1,0 +1,35 @@
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  cppcoreguidelines-interfaces-global-init,
+  cppcoreguidelines-narrowing-conversions,
+  cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  cppcoreguidelines-pro-bounds-constant-array-index,
+  cppcoreguidelines-pro-type-const-cast,
+  cppcoreguidelines-pro-type-reinterpret-cast,
+  cppcoreguidelines-slicing,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-naming
+
+WarningsAsErrors: ''          # Start lenient
+HeaderFilterRegex: '^(src|include)/'
+FormatStyle: file
+ExtraArgs: ['-std=c++20']
+
+CheckOptions:
+  - key: modernize-use-default-member-init.UseAssignment
+    value: 'false'
+  - key: modernize-use-override.IgnoreDestructors
+    value: 'true'
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL,nullptr'
+  - key: modernize-use-emplace.SmartPointersOnly
+    value: 'false'
+  - key: performance-move-const-arg.WarnOn
+    value: 'true'
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'std::string_view'
