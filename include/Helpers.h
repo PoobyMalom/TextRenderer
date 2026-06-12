@@ -26,6 +26,8 @@ uint16_t read2Bytes(const vector<char>& data, int& offset);
 uint32_t read4Bytes(const vector<char>& data, int& offset);
 uint64_t read8Bytes(const vector<char>& data, int& offset);
 
+int16_t readS16(const std::vector<char>& data, int& offset);
+
 uint32_t CalcTableChecksum(const std::vector<char>& data, uint32_t offset, uint32_t length);
 uint32_t calculateHeadChecksum(const std::vector<char>& data, uint32_t headOffset, uint32_t length);
 

@@ -5,11 +5,6 @@ SDL_Window* initializeWindow(const char* title, int width, int height) {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return nullptr;
     }
-    
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
-        return nullptr;
-    }
 
     SDL_Window* window = SDL_CreateWindow(title,
                                           SDL_WINDOWPOS_UNDEFINED,

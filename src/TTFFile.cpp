@@ -100,7 +100,7 @@ Glyph TTFFile::parseGlyph(const std::vector<char>& data, uint32_t unicode) {
         std::cerr << "Invalid glyph offset: " << glyphOffset << std::endl;
         throw std::out_of_range("Glyph offset out of range");
     }
-    Glyph parsedGlyph = Glyph::parseGlyph(data, glyphOffset);
+    Glyph parsedGlyph = Glyph::parseGlyph(data, locas, glyfOffset, glyphOffset);
     parsedGlyph.addPointsBetween();
     return parsedGlyph;
 }

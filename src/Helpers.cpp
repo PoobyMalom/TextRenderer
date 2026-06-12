@@ -159,6 +159,10 @@ uint64_t read8Bytes(const vector<char>& data, int& offset) {
     return value;
 }
 
+int16_t readS16(const std::vector<char>& data, int& offset) {
+    return static_cast<int16_t>(convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset]))); offset += 2;
+}
+
 // Sum a table exactly as per TTF spec (big-endian words, zero-padded to 4 bytes)
 uint32_t CalcTableChecksum(const std::vector<char>& data, uint32_t offset, uint32_t length) {
     if (offset > data.size() || length > data.size() - offset) {
