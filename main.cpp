@@ -45,7 +45,7 @@ int main() {
     streampos fileSize = file.tellg();
     file.seekg(0, ios::beg);
 
-    if (fileSize < sizeof(uint32_t)) {
+    if (fileSize < static_cast<std::streamoff>(sizeof(uint32_t))) {
         cerr << "File is too small to read a uint32_t value." << endl;
         return 1;
     }
