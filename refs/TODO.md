@@ -369,3 +369,132 @@ Subtasks are listed under each item — check them off as you go.
   - [ ] Extract `1320` to `const int NOMINAL_LINE_HEIGHT_UNITS = 1320` similarly
   - [ ] Add a comment noting both should come from `hmtx`/`hhea` once PLANS.md Phase 1 is done
   - [ ] This item is fully resolved by PLANS.md Phase 1
+
+## LINTING (clang-tidy)
+
+Warnings captured from: `clang-tidy --checks="bugprone-*,modernize-*,performance-*,readability-*,..." --header-filter="$(pwd)/(src|include)/.*"`
+
+- [x] **LT1** `endl` used instead of `'\n'` across all files — `std::endl` flushes the stream on every call, which is unnecessary and slow.
+  - [x] Replace all `<< endl` with `<< '\n'` in `main.cpp` (lines 40, 49, 64, 176)
+  - [x] Replace in `src/CmapTable.cpp` (lines 112, 124, 133, 142)
+  - [x] Replace in `src/GlyphTable.cpp` (lines 380, 381, 382, 383, 388, 393, 396)
+  - [x] Replace in `src/Helpers.cpp` (line 103)
+  - [x] Replace in `src/SDLInitializer.cpp` (lines 5, 16, 26, 37)
+  - [x] Replace in `src/TTFFile.cpp` (lines 50, 86, 93, 100)
+  - [x] Replace in `src/TTFHeader.cpp` (line 81)
+  - [x] Replace in `src/TTFTable.cpp` (line 18)
+
+- [x] **LT2** Narrowing conversions in `GlyphTable.cpp` — `uint32_t`/`uint16_t` read results assigned to `int`/`int16_t` without explicit cast; float↔int conversions in coordinate and matrix arithmetic.
+  - [x] Add `static_cast<int>` where `uint32_t` offsets are assigned to `int pos` (lines 49, 109, 236)
+  - [x] Add `static_cast<int16_t>` where `read2Bytes` results (uint16_t) are assigned to signed fields (lines 237–241)
+  - [x] Add explicit casts in the coordinate delta narrowing cases (lines 79, 81, 84, 95, 97, 100)
+  - [x] Fix narrowing in `ms`/`ns` push_back — floats stored into `vector<int32_t>` (lines 196, 197); resolved by D6 if done first
+  - [x] Add `static_cast<int16_t>` where `size_t pointOffset` is used as endpoint shift (line 210)
+  - [x] Add parentheses to matrix multiply lines 224–225 to clarify operator precedence (also resolves LT8)
+
+- [x] **LT3** Narrowing conversions in other files — same pattern of unsigned→signed or float→int without explicit cast.
+  - [x] `src/CmapTable.cpp`: add casts on lines 26, 33, 39, 51, 101
+  - [x] `src/HeadTable.cpp`: add casts on lines 63, 70, 71, 72–80
+  - [x] `src/Helpers.cpp`: add casts on lines 21, 25–26, 112–113
+  - [x] `src/LocaTable.cpp`: add cast on line 9 (`size_t` → `int pos`)
+  - [x] `src/MovablePoint.cpp`: add casts on lines 26–29, 37–38
+  - [x] `src/TTFFile.cpp`: no additional narrowing beyond what's already flagged
+
+- [x] **LT4** Implicit `int → bool` conversions in flag bit-checks — `flag & 1` should be `(flag & 1) != 0` for clarity and to silence the warning.
+  - [x] Fix in `parseSimpleGlyph`: lines 64, 76, 78, 83 in `GlyphTable.cpp`
+  - [x] Fix in `parseCompoundGlyph`: lines 123, 124, 125, 129, 130, 131 in `GlyphTable.cpp`
+  - [x] Fix in `addPointsBetween`: lines 272, 273, 306, 307 in `GlyphTable.cpp`
+  - [x] Fix in `drawSimpleGlyph`: line 353 in `GlyphTable.cpp`
+  - [x] Fix `bool → uint32_t` conversion in `Helpers.cpp:202`
+
+- [x] **LT5** Constructor vector parameters passed by value — should accept by value and `std::move` into member in initializer list.
+  - [x] `Glyph` constructor (`GlyphTable.cpp:18–23`): add `std::move` for `endPtsOfContours`, `instructions`, `flags`, `xCoordinates`, `yCoordinates` in the initializer list
+  - [x] `TTFFile` constructor (`TTFFile.cpp:8–10,12`): add `std::move` for `header`, `tables`, `locas`, `cmapTable`
+  - [x] `TTFTable` constructor (`TTFTable.cpp:10`): add `std::move` for the `string` tag parameter
+
+- [x] **LT6** Function parameters passed by value when `const&` would avoid the copy.
+  - [x] `drawSimpleGlyph`: change `Glyph glyph` → `const Glyph& glyph` (also tracked in D5)
+  - [x] `TTFFile::parseGlyphs`: change `std::string letters` → `const std::string& letters` (`TTFFile.cpp:108`)
+
+- [x] **LT7** Missing braces around single-statement `if`/`else` bodies.
+  - [x] Add braces to the zoom clamp conditionals in `main.cpp` (lines 95, 99, 103, 107, 115, 123–126)
+  - [x] Add braces in `Helpers.cpp` (lines 191, 192, 202, 212, 218, 219)
+
+- [x] **LT8** Manual `<`/`>` comparisons where `std::min`/`std::max` should be used (`main.cpp`).
+  - [x] Replace `if (scalingFactor < MIN) scalingFactor = MIN` pattern with `scalingFactor = std::max(scalingFactor, MIN)` on lines 95, 103, 115, 123, 125
+  - [x] Replace `if (scalingFactor > MAX) scalingFactor = MAX` with `std::min` equivalents on lines 99, 107, 124, 126
+  - [x] Add `#include <algorithm>` to `main.cpp` if not already present
+
+- [x] **LT9** `switch` on SDL key event missing a `default` case (`main.cpp:92`).
+  - [x] Add `default: break;` at the end of the `switch (event.key.keysym.sym)` block
+
+- [x] **LT10** Return statements repeat the return type instead of using braced init lists (`modernize-return-braced-init-list`).
+  - [x] `TTFHeader.cpp`: convert `return TTFHeader(...)` on lines 40, 43, 46, 49 to `return {...}`
+  - [x] `GlyphTable.cpp:105`: convert `return Glyph(...)` to `return {...}`
+  - [x] `GlyphTable.cpp:231`: convert `return Glyph(...)` to `return {...}`
+  - [x] `MaxpTable.cpp:71`: convert `return MaxpTable(...)` to `return {...}`
+  - [x] `CmapTable.cpp:118`: convert `return CmapSubtable(...)` to `return {...}`
+  - [x] `TTFFile.cpp:69`: convert `return TTFFile(...)` to `return {...}`
+  - [x] `HeadTable.cpp:82`: convert `return HeadTable(...)` to `return {...}`
+
+- [x] **LT11** `else` after `return` — the `else` branch is dead; remove it and unindent the else body.
+  - [x] `TTFHeader.cpp:41`: remove `else` after the `return` on line 40
+  - [x] `GlyphTable.cpp:245`: remove `else` after `return` in `parseGlyph`
+  - [x] `CmapTable.cpp:73,77`: remove both `else` branches in `getGlyphIndex` format dispatch
+
+- [x] **LT12** Missing explicit parentheses in math expressions flagged by `readability-math-missing-parentheses`.
+  - [x] `Helpers.cpp:10`: parenthesize the Bezier interpolation terms
+  - [x] `Helpers.cpp:25–26`: parenthesize `*` before `+` in x/y lerp expressions
+  - [x] `GlyphTable.cpp:224–225`: parenthesize matrix multiply terms `(as[i] * x)` and `(cs[i] * y)`
+  - [x] `GlyphTable.cpp:356`: parenthesize `%` before `+` in `wrapIdx`
+  - [x] `GlyphTable.cpp:361,365,369`: parenthesize `*` before `+` in SDL coordinate calculations
+
+- [x] **LT13** Inconsistent parameter names between `parseSimpleGlyph` declaration and definition.
+  - [x] In `GlyphTable.h:37`, rename the first parameter from `pos` to `offset` to match the definition in `GlyphTable.cpp:48`
+
+- [x] **LT14** Loop variable type too narrow — `uint16_t` used as loop counter where upper bound is `size_type` (`GlyphTable.cpp:395`).
+  - [x] Change `for (uint16_t i = 0; i < xCoordinates.size(); i++)` to `for (size_t i = 0; ...)`
+
+- [x] **LT15** High cognitive complexity — functions exceed the threshold of 25.
+  - [x] `main()` (complexity 66): extract key-event handling into `handleKeyEvent(SDL_Event&, double& scalingFactor, bool& quit)`, extract render loop body into `renderFrame(...)`
+  - [x] `parseCompoundGlyph` (complexity 33): extract the flag/argument reading block into a helper; resolved naturally by D6
+  - [x] `CmapTable::getGlyphIndex` (complexity 31): resolved by D11 (single dispatch replaces three scan loops)
+
+- [x] **LT16** Short identifier names flagged by `readability-identifier-length` — many are legitimate math names; suppress or rename case by case.
+  - [x] Suppress `a`, `b`, `c`, `d` matrix variable warnings in `parseCompoundGlyph` with `// NOLINT(readability-identifier-length)` — single-letter names are conventional for 2×2 transform matrices; resolved by D6 if struct fields are renamed
+  - [x] Rename loop variable `e` in `main.cpp:81` catch block → `err`
+  - [x] Rename `t` in `TTFHeader.cpp:56` → `table`
+  - [x] Rename `os` parameter in `TTFHeader.cpp:76` → `outStream`
+  - [x] Rename `ss` in `Helpers.cpp:87` → `stream`
+  - [x] Rename `ci`/`ei` in `GlyphTable.cpp:358–359` → `ctrlIdx`/`endIdx`
+  - [x] Rename `m0`/`n0`/`m`/`n` in `GlyphTable.cpp:181–184` → `scaleM0`/`scaleN0`/`scaleM`/`scaleN`; resolved by D6
+  - [x] Suppress `p0`/`p1`/`p2` in `Helpers.cpp:9` — conventional Bezier point names; add `// NOLINT`
+  - [x] Suppress `x`/`y`/`t` in `Helpers.cpp:20–26` — conventional math param names; add `// NOLINT`
+
+- [x] **LT17** `bugprone-easily-swappable-parameters` — constructors with many same-typed params. These are design issues; most are resolved by D6/D9.
+  - [x] `Glyph` constructor: resolved by D6 (fewer params once compound glyph is restructured) or add a `GlyphData` struct
+  - [x] `TTFFile` constructor: resolved by D3 (removes 5 redundant params)
+  - [x] `HeadTable`/`MaxpTable` constructors: resolved by D9 (converted to structs)
+  - [x] `TTFTable` constructor: resolved by M1 (value type, emplace_back)
+  - [x] `CmapSubtable` constructor (`CmapTable.cpp:8`): rename params to make intent clear or add a factory function
+  - [x] `parseSimpleGlyph`/`parseCompoundGlyph`: the adjacent `uint32_t` params are unavoidable without a context struct — document with a comment for now
+
+- [x] **LT18** `bugprone-branch-clone` — identical `if`/`else` branches in `parseCompoundGlyph` for the isWord/isXY case (`GlyphTable.cpp:138,146`).
+  - [x] This is the same as X4 — the branches look identical because the signed/unsigned distinction is not yet implemented
+  - [x] Resolve by implementing X4 (correct signed/unsigned argument reading based on `ARGS_ARE_XY_VALUES` flag)
+
+- [x] **LT19** `clang-analyzer-deadcode.DeadStores` — `calculatedCheckSum` computed but never read (`TTFTable.cpp:39,41`).
+  - [x] Resolve by uncommenting the checksum verification block (same as DC1)
+
+- [x] **LT20** `performance-inefficient-vector-operation` — `push_back` inside loop in `parseSimpleGlyph` without pre-allocating (`GlyphTable.cpp:52`).
+  - [x] Add `endPtsOfContours.reserve(numberOfContours)` before the loop on line 52
+
+- [x] **LT21** Multiple declarations in a single statement (`readability-isolate-declaration`).
+  - [x] `Helpers.cpp:211`: split `int s = 0, i = 0;` into two separate declarations
+  - [x] `Helpers.cpp:216`: split `int w = 0, r = 0;` (or equivalent) into two declarations
+  - [x] `MovablePoint.cpp:22`: split combined declaration
+  - [x] `MovablePoint.cpp:35`: split combined declaration
+
+- [x] **LT22** `readability-uppercase-literal-suffix` — float literals use lowercase `f` suffix (`16384.0f` etc). Very minor style nit; consider suppressing the check instead of touching every literal.
+  - [x] Either: add `-readability-uppercase-literal-suffix` to the `--checks` suppression list in `.gitlab-ci.yml`
+  - [x] Or: change all `16384.0f` → `16384.0F`, `33.0f` → `33.0F`, `65536.0f` → `65536.0F` etc. across `GlyphTable.cpp` and `Helpers.cpp`

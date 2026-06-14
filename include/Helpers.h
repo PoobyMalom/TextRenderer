@@ -12,7 +12,7 @@ using namespace std;
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2);
 vector<uint32_t> stringToUnicode(const string& input);
 string hexToAscii(uint32_t value);
-uint32_t findUnicodevector(vector<uint32_t> startCharCodes, vector<uint32_t> endCharCodes, vector<uint32_t> startGlyphCodes, uint16_t value);
+uint32_t findUnicodevector(const vector<uint32_t>& startCharCodes, const vector<uint32_t>& endCharCodes, const vector<uint32_t>& startGlyphCodes, uint16_t value);
 
 SDL_Point getBezierPoint(const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point3, float t);
 
