@@ -5,13 +5,13 @@
 
 class MovablePoint {
 public:
-    MovablePoint(float x = 0.0f, float y = 0.0f);
+    explicit MovablePoint(float x = 0.0f, float y = 0.0f);
 
     float getX() const;
     float getY() const;
     void setPosition(float x, float y);
 
-    void handleEvent(SDL_Event& e);
+    void handleEvent(const SDL_Event& e);
     void move();
 
 private:

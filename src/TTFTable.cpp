@@ -7,15 +7,15 @@
 
 using namespace std;
 
-TTFTable::TTFTable(const string& tag, uint32_t checksum, uint32_t offset, uint32_t length)
-    : tag(tag), checksum(checksum), offset(offset), length(length) {}
+TTFTable::TTFTable(string tag, uint32_t checksum, uint32_t offset, uint32_t length) // NOLINT(bugprone-easily-swappable-parameters)
+    : tag(std::move(tag)), checksum(checksum), offset(offset), length(length) {}
 
-string TTFTable::getTag() const { return tag; }
+const string& TTFTable::getTag() const { return tag; }
 uint32_t TTFTable::getChecksum() const { return checksum; }
 uint32_t TTFTable::getOffset() const { return offset; }
 uint32_t TTFTable::getLength() const { return length; }
 void TTFTable::printTable() const { 
-    cout << "Tag: " << tag << ", Checksum: " << checksum << ", Offset: " << offset << ", Length: " << length << endl; 
+    cout << "Tag: " << tag << ", Checksum: " << checksum << ", Offset: " << offset << ", Length: " << length << '\n'; 
 }
 
 vector<TTFTable*> TTFTable::parseTableDirectory(const vector<char>& data, uint16_t numTables) {
@@ -41,20 +41,14 @@ vector<TTFTable*> TTFTable::parseTableDirectory(const vector<char>& data, uint16
             calculatedCheckSum = CalcTableChecksum(data, tableOffset, length);
         }
 
-        // if (calculatedCheckSum != checksum) {
-        //     fprintf(stderr, "Table: %s checksum does not match calculated checksum\n", tag.c_str());
-        // } else {
-        //     printf("Table: %s checksum matchs calculated checksum\n", tag.c_str());
-        // }
+        if (calculatedCheckSum != checksum) {
+            fprintf(stderr, "Table: %s checksum does not match calculated checksum\n", tag.c_str());
+        } else {
+            printf("Table: %s checksum matchs calculated checksum\n", tag.c_str());
+        }
 
         tables.push_back(new TTFTable(tag, checksum, tableOffset, length));
     }
     return tables;
 }
 
-uint32_t TTFTable::convertEndian32(uint32_t value) {
-    return ((value >> 24) & 0x000000FF) |
-           ((value >> 8)  & 0x0000FF00) |
-           ((value << 8)  & 0x00FF0000) |
-           ((value << 24) & 0xFF000000);
-}

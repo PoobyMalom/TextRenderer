@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <SDL2/SDL.h>
 #include <fstream>
 #include <vector>
@@ -24,20 +25,96 @@ using namespace std;
 double scalingFactor = 0.1;
 int thickness = 2;
 
-const int SCREEN_WIDTH = 1400;
+const int SCREEN_WIDTH  = 1400;
 const int SCREEN_HEIGHT = 1320;
-
-// Large canvas dimension constants
-const int CANVAS_WIDTH = 10000;
+const int CANVAS_WIDTH  = 10000;
 const int CANVAS_HEIGHT = 10000;
+const int SCROLL_SPEED  = 20;
+
+void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewportY) { // NOLINT(bugprone-easily-swappable-parameters)
+    if (evt.type == SDL_QUIT) {
+        quit = true;
+    } else if (evt.type == SDL_KEYDOWN) {
+        switch (evt.key.keysym.sym) {
+            case SDLK_UP:
+                viewportY -= SCROLL_SPEED;
+                viewportY = std::max(viewportY, 0);
+                break;
+            case SDLK_DOWN:
+                viewportY += SCROLL_SPEED;
+                viewportY = std::min(viewportY, CANVAS_HEIGHT - SCREEN_HEIGHT);
+                break;
+            case SDLK_LEFT:
+                viewportX -= SCROLL_SPEED;
+                viewportX = std::max(viewportX, 0);
+                break;
+            case SDLK_RIGHT:
+                viewportX += SCROLL_SPEED;
+                viewportX = std::min(viewportX, CANVAS_WIDTH - SCREEN_WIDTH);
+                break;
+            case SDLK_PLUS:
+            case SDLK_EQUALS:
+                scalingFactor += 0.01;
+                break;
+            case SDLK_MINUS:
+                scalingFactor -= 0.01;
+                scalingFactor = std::max(scalingFactor, 0.01);
+                break;
+            default:
+                break;
+        }
+    } else if (evt.type == SDL_MOUSEWHEEL) {
+        viewportX += evt.wheel.x * SCROLL_SPEED;
+        viewportY -= evt.wheel.y * SCROLL_SPEED;
+        viewportX = std::max(viewportX, 0);
+        viewportX = std::min(viewportX, CANVAS_WIDTH - SCREEN_WIDTH);
+        viewportY = std::max(viewportY, 0);
+        viewportY = std::min(viewportY, CANVAS_HEIGHT - SCREEN_HEIGHT);
+    }
+}
+
+void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
+                 const vector<Glyph>& glyphs, int viewportX, int viewportY) {
+    const int advanceWidth  = static_cast<int>(600  * scalingFactor);
+    const int advanceHeight = static_cast<int>(1320 * scalingFactor);
+
+    SDL_SetRenderTarget(renderer, canvasTexture);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+
+    int currentXOffset = 0;
+    int currentYOffset = 100;
+
+    for (size_t i = 0; i < glyphs.size(); ++i) {
+        if (currentXOffset >= CANVAS_WIDTH - advanceWidth) {
+            currentXOffset = 0;
+            currentYOffset += advanceHeight;
+        }
+        try {
+            Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset,
+                                   scalingFactor, SCREEN_HEIGHT, thickness);
+        } catch (const std::exception& err) {
+            cerr << "Error drawing glyph " << i << ": " << err.what() << '\n';
+        }
+        currentXOffset += advanceWidth;
+    }
+
+    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    SDL_Rect srcRect = {viewportX, viewportY, SCREEN_WIDTH, SCREEN_HEIGHT};
+    SDL_Rect dstRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+    SDL_RenderCopy(renderer, canvasTexture, &srcRect, &dstRect);
+}
 
 int main() {
-    // Open the file in binary mode
     string fileName = "src/fonts/JetBrainsMono-Bold.ttf";
     ifstream file(fileName, ios::binary);
 
     if (!file.is_open()) {
-        cerr << "File: " << fileName << " Cannot be opened" << endl;
+        cerr << "File: " << fileName << " Cannot be opened" << '\n';
         return 1;
     }
 
@@ -46,150 +123,61 @@ int main() {
     file.seekg(0, ios::beg);
 
     if (fileSize < static_cast<std::streamoff>(sizeof(uint32_t))) {
-        cerr << "File is too small to read a uint32_t value." << endl;
+        cerr << "File is too small to read a uint32_t value." << '\n';
         return 1;
     }
 
     vector<char> buffer(fileSize);
     file.read(buffer.data(), fileSize);
+    file.close();
 
     TTFFile ttfFile = TTFFile::parse(buffer);
 
-    string textToRender =  "The unanimous Declaration of the thirteen united States of America"; 
-
     vector<Glyph> glyphs;
     try {
+        const string textToRender = "The unanimous Declaration of the thirteen united States of America";
         glyphs = ttfFile.parseGlyphs(buffer, textToRender);
-    } catch (const std::exception& e) {
-        cerr << "Error parsing glyphs: " << e.what() << endl;
+    } catch (const std::exception& err) {
+        cerr << "Error parsing glyphs: " << err.what() << '\n';
         return 1;
     }
 
     Uint32 startTime = SDL_GetTicks();
     int frameCount = 0;
 
-    SDL_Window* window = initializeWindow("text_renderer", SCREEN_WIDTH, SCREEN_HEIGHT);
-    SDL_Renderer* renderer = initializeRenderer(window);
-    SDL_Texture* canvasTexture = intializeTexture(renderer, window, CANVAS_WIDTH, CANVAS_HEIGHT);
+    SDL_Window*   window        = initializeWindow("text_renderer", SCREEN_WIDTH, SCREEN_HEIGHT);
+    SDL_Renderer* renderer      = initializeRenderer(window);
+    SDL_Texture*  canvasTexture = intializeTexture(renderer, window, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Variables for scrolling
     int viewportX = 0;
     int viewportY = 0;
-    const int SCROLL_SPEED = 20;
 
     bool quit = false;
-    SDL_Event e;
+    SDL_Event evt;
 
     while (!quit) {
-        const int ADVANCEWIDTH = 600 * scalingFactor;
-        const int ADVANCEHEIGHT = 1320 * scalingFactor;
-        // Handle events on the queue
-        while (SDL_PollEvent(&e) != 0) {
-            if (e.type == SDL_QUIT) {
-                quit = true;
-            } else if (e.type == SDL_KEYDOWN) {
-                // Adjust the viewport position based on arrow key input
-                switch (e.key.keysym.sym) {
-                    case SDLK_UP:
-                        viewportY -= SCROLL_SPEED;
-                        if (viewportY < 0) viewportY = 0;
-                        break;
-                    case SDLK_DOWN:
-                        viewportY += SCROLL_SPEED;
-                        if (viewportY > CANVAS_HEIGHT - SCREEN_HEIGHT) viewportY = CANVAS_HEIGHT - SCREEN_HEIGHT;
-                        break;
-                    case SDLK_LEFT:
-                        viewportX -= SCROLL_SPEED;
-                        if (viewportX < 0) viewportX = 0;
-                        break;
-                    case SDLK_RIGHT:
-                        viewportX += SCROLL_SPEED;
-                        if (viewportX > CANVAS_WIDTH - SCREEN_WIDTH) viewportX = CANVAS_WIDTH - SCREEN_WIDTH;
-                        break;
-                    case SDLK_PLUS:
-                    case SDLK_EQUALS:  // For the '=' key, typically on the same key as '+'
-                        scalingFactor += 0.01;
-                        break;
-                    case SDLK_MINUS:
-                        scalingFactor -= 0.01;
-                        if (scalingFactor < 0.01) scalingFactor = 0.01;  // Prevent negative or zero scale
-                        break;
-                }
-            } else if (e.type == SDL_MOUSEWHEEL) {
-                // Adjust the viewport position based on mouse wheel input
-                viewportX += e.wheel.x * SCROLL_SPEED;
-                viewportY -= e.wheel.y * SCROLL_SPEED; // Typically, wheel.y is positive when scrolling up
-
-                if (viewportX < 0) viewportX = 0;
-                if (viewportX > CANVAS_WIDTH - SCREEN_WIDTH) viewportX = CANVAS_WIDTH - SCREEN_WIDTH;
-                if (viewportY < 0) viewportY = 0;
-                if (viewportY > CANVAS_HEIGHT - SCREEN_HEIGHT) viewportY = CANVAS_HEIGHT - SCREEN_HEIGHT;
-            }
+        while (SDL_PollEvent(&evt) != 0) {
+            handleEvent(evt, quit, viewportX, viewportY);
         }
 
-        // Clear the canvas texture
-        SDL_SetRenderTarget(renderer, canvasTexture);
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // Clear with white
-        SDL_RenderClear(renderer);
-
-        // Draw the glyphs
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set draw color for glyphs
-
-        int currentXOffset = 0;
-        int currentYOffset = 100;
-
-        for (size_t i = 0; i < glyphs.size(); ++i) {
-            if (currentXOffset >= CANVAS_WIDTH - ADVANCEWIDTH) {
-                currentXOffset = 0;
-                currentYOffset += ADVANCEHEIGHT;
-            }
-
-            try {
-                Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset, scalingFactor, SCREEN_HEIGHT, thickness);
-            } catch (const std::exception& e) {
-                cerr << "Error drawing glyph " << i << ": " << e.what() << endl;
-            }
-
-            currentXOffset += ADVANCEWIDTH;
-        }
-
-        // Reset the render target to the default window
-        SDL_SetRenderTarget(renderer, nullptr);
-
-        // Clear the renderer
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        // Define the source rectangle (viewport) from the canvas texture
-        SDL_Rect srcRect = {viewportX, viewportY, SCREEN_WIDTH, SCREEN_HEIGHT};
-
-        // Define the destination rectangle on the window
-        SDL_Rect dstRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-
-        // Render the visible part of the canvas texture to the window
-        SDL_RenderCopy(renderer, canvasTexture, &srcRect, &dstRect);
+        renderFrame(renderer, canvasTexture, glyphs, viewportX, viewportY);
 
         frameCount++;
         Uint32 elapsedTime = SDL_GetTicks() - startTime;
         if (elapsedTime >= 1000) {
-            float fps = frameCount / (elapsedTime / 1000.0f);
-            cout << "FPS: " << fps << endl;
-            //uncomment for fps debug on console
+            float fps = static_cast<float>(frameCount) / (static_cast<float>(elapsedTime) / 1000.0F);
+            cout << "FPS: " << fps << '\n';
             frameCount = 0;
             startTime = SDL_GetTicks();
         }
 
-        // Update the screen
         SDL_RenderPresent(renderer);
     }
 
-    // Clean up
     SDL_DestroyTexture(canvasTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
-    file.close();
 
     return 0;
 }

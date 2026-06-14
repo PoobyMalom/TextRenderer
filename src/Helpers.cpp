@@ -6,8 +6,8 @@
 
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2) {
     // Check if the control point is collinear with the start and end points
-    auto isCollinear = [](const SDL_Point& p0, const SDL_Point& p1, const SDL_Point& p2) {
-        return std::abs((p2.y - p0.y) * (p1.x - p0.x) - (p1.y - p0.y) * (p2.x - p0.x)) < 1e-5;
+    auto isCollinear = [](const SDL_Point& p0, const SDL_Point& p1, const SDL_Point& p2) { // NOLINT(readability-identifier-length)
+        return std::abs(((p2.y - p0.y) * (p1.x - p0.x)) - ((p1.y - p0.y) * (p2.x - p0.x))) < 1e-5;
     };
 
     if (isCollinear(point1, controlPoint, point2)) {
@@ -17,13 +17,13 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     }
 
     int numPoints = 20; // Increase the number of points for a smoother curve
-    float t = 0.0;
-    float step = 1.0f / numPoints;
+    float t = 0.0; // NOLINT(readability-identifier-length)
+    float step = 1.0F / static_cast<float>(numPoints);
     std::vector<SDL_Point> points;
 
     for (int i = 0; i <= numPoints; i++) {
-        float x = ((1 - t) * (1 - t)) * point1.x + 2 * (1 - t) * t * controlPoint.x + (t * t) * point2.x;
-        float y = ((1 - t) * (1 - t)) * point1.y + 2 * (1 - t) * t * controlPoint.y + (t * t) * point2.y;
+        float x = (((1 - t) * (1 - t)) * (float)point1.x) + (2 * (1 - t) * t * (float)controlPoint.x) + ((t * t) * (float)point2.x); // NOLINT(readability-identifier-length)
+        float y = (((1 - t) * (1 - t)) * (float)point1.y) + (2 * (1 - t) * t * (float)controlPoint.y) + ((t * t) * (float)point2.y); // NOLINT(readability-identifier-length)
         SDL_Point point = { static_cast<int>(x), static_cast<int>(y) };
         points.push_back(point);
         t += step;
@@ -54,20 +54,20 @@ vector<uint32_t> stringToUnicode(const string& input) {
     // Iterate over the string
     for (size_t i = 0; i < length;) {
         uint32_t codePoint = 0;
-        unsigned char c = input[i];
+        unsigned char character = input[i];
 
         // Determine the number of bytes in the UTF-8 character
-        if (c <= 0x7F) { // 1-byte character (ASCII)
-            codePoint = c;
+        if (character <= 0x7F) { // 1-byte character (ASCII)
+            codePoint = character;
             i += 1;
-        } else if (c <= 0xDF) { // 2-byte character
-            codePoint = ((c & 0x1F) << 6) | (input[i + 1] & 0x3F);
+        } else if (character <= 0xDF) { // 2-byte character
+            codePoint = ((character & 0x1F) << 6) | (input[i + 1] & 0x3F);
             i += 2;
-        } else if (c <= 0xEF) { // 3-byte character
-            codePoint = ((c & 0x0F) << 12) | ((input[i + 1] & 0x3F) << 6) | (input[i + 2] & 0x3F);
+        } else if (character <= 0xEF) { // 3-byte character
+            codePoint = ((character & 0x0F) << 12) | ((input[i + 1] & 0x3F) << 6) | (input[i + 2] & 0x3F);
             i += 3;
-        } else if (c <= 0xF7) { // 4-byte character
-            codePoint = ((c & 0x07) << 18) | ((input[i + 1] & 0x3F) << 12) | ((input[i + 2] & 0x3F) << 6) | (input[i + 3] & 0x3F);
+        } else if (character <= 0xF7) { // 4-byte character
+            codePoint = ((character & 0x07) << 18) | ((input[i + 1] & 0x3F) << 12) | ((input[i + 2] & 0x3F) << 6) | (input[i + 3] & 0x3F);
             i += 4;
         } else {
             // Invalid UTF-8 byte sequence, handle error if needed
@@ -84,9 +84,9 @@ string hexToAscii(uint32_t value) {
     /*
     Convert from hex string to ASCII character
     */
-    std::stringstream ss;
-    ss << hex << uppercase << setw(8) << setfill('0') << value;
-    string hexString = ss.str();
+    std::stringstream stream;
+    stream << hex << uppercase << setw(8) << setfill('0') << value;
+    string hexString = stream.str();
     string ascii;
     for (size_t i = 0; i < hexString.length(); i += 2) {
         // Convert each pair of hex digits to an integer
@@ -97,20 +97,20 @@ string hexToAscii(uint32_t value) {
     return ascii;
 }
 
-uint32_t findUnicodevector(vector<uint32_t> startCharCodes, vector<uint32_t> endCharCodes, vector<uint32_t> startGlyphCodes, uint16_t value) {
+uint32_t findUnicodevector(const vector<uint32_t>& startCharCodes, const vector<uint32_t>& endCharCodes, const vector<uint32_t>& startGlyphCodes, uint16_t value) {
     for (int i = 0; i < static_cast<int>(startCharCodes.size()); ++i) {
         if (value >= startCharCodes[i] && value <= endCharCodes[i]) {
-            cout << "startCharCode: " << startCharCodes[i] << " | endCharCode: " << endCharCodes[i] << " | startGlyphCode: " << startGlyphCodes[i] << endl;
+            cout << "startCharCode: " << startCharCodes[i] << " | endCharCode: " << endCharCodes[i] << " | startGlyphCode: " << startGlyphCodes[i] << '\n';
             return startGlyphCodes[i] + (value - startCharCodes[i]);
         }
     }
     return 0;
 }
 
-SDL_Point getBezierPoint(const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point3, float t) {
+SDL_Point getBezierPoint(const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point3, float t) { // NOLINT(readability-identifier-length)
     SDL_Point temp;
-    temp.x = ((1 - t) * (1 - t)) * point1.x + 2 * (1 - t) * t * controlPoint.x + (t * t) * point3.x;
-    temp.y = ((1 - t) * (1 - t)) * point1.y + 2 * (1 - t) * t * controlPoint.y + (t * t) * point3.y;
+    temp.x = (int)((((1 - t) * (1 - t)) * (float)point1.x) + (2 * (1 - t) * t * (float)controlPoint.x) + ((t * t) * (float)point3.x));
+    temp.y = (int)((((1 - t) * (1 - t)) * (float)point1.y) + (2 * (1 - t) * t * (float)controlPoint.y) + ((t * t) * (float)point3.y));
     return temp;
 }
 
@@ -160,7 +160,9 @@ uint64_t read8Bytes(const vector<char>& data, int& offset) {
 }
 
 int16_t readS16(const std::vector<char>& data, int& offset) {
-    return static_cast<int16_t>(convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset]))); offset += 2;
+    int16_t value = static_cast<int16_t>(convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset])));
+    offset += 2;
+    return value;
 }
 
 // Sum a table exactly as per TTF spec (big-endian words, zero-padded to 4 bytes)
@@ -172,25 +174,25 @@ uint32_t CalcTableChecksum(const std::vector<char>& data, uint32_t offset, uint3
     const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data.data()) + offset;
 
     uint32_t sum = 0;
-    uint32_t i = 0;
+    uint32_t i = 0; // NOLINT(readability-identifier-length)
 
     // Sum full 4-byte big-endian words
     for (; i + 4 <= length; i += 4) {
-        uint32_t w = (uint32_t(bytes[i])   << 24) |
+        uint32_t width = (uint32_t(bytes[i])   << 24) | 
                      (uint32_t(bytes[i+1]) << 16) |
                      (uint32_t(bytes[i+2]) <<  8) |
                      (uint32_t(bytes[i+3])      );
-        sum += w;  // wraps modulo 2^32
+        sum += width;  // wraps modulo 2^32
     }
 
     // Trailing 1–3 bytes, zero-padded on the right (low bytes)
     if (i < length) {
-        uint32_t w = 0;
+        uint32_t width = 0;
         uint32_t rem = length - i;
-        w |= uint32_t(bytes[i]) << 24;
-        if (rem >= 2) w |= uint32_t(bytes[i+1]) << 16;
-        if (rem >= 3) w |= uint32_t(bytes[i+2]) <<  8;
-        sum += w;
+        width |= uint32_t(bytes[i]) << 24;
+        if (rem >= 2) {width |= uint32_t(bytes[i+1]) << 16;}
+        if (rem >= 3) {width |= uint32_t(bytes[i+2]) <<  8;}
+        sum += width;
     }
 
     return sum;
@@ -199,7 +201,7 @@ uint32_t CalcTableChecksum(const std::vector<char>& data, uint32_t offset, uint3
 uint32_t calculateHeadChecksum(const std::vector<char>& data, uint32_t headOffset, uint32_t headLength)
 {
     // build checksum with adjustment zeroed
-    if (headLength < 12) return false;
+    if (headLength < 12) {return 0;}
 
     std::vector<uint8_t> copy(headLength);
     std::memcpy(copy.data(),
@@ -207,16 +209,18 @@ uint32_t calculateHeadChecksum(const std::vector<char>& data, uint32_t headOffse
                 headLength);
     copy[8] = copy[9] = copy[10] = copy[11] = 0;
 
-    auto sum_be_words = [](const uint8_t* b, uint32_t n)->uint32_t {
-        uint32_t s = 0, i = 0;
-        for (; i + 4 <= n; i += 4)
+    auto sum_be_words = [](const uint8_t* b, uint32_t n)->uint32_t { // NOLINT(readability-identifier-length)
+        uint32_t s = 0; // NOLINT(readability-identifier-length)
+        uint32_t i = 0; // NOLINT(readability-identifier-length)
+        for (; i + 4 <= n; i += 4) {
             s += (uint32_t(b[i])<<24)|(uint32_t(b[i+1])<<16)|
-                 (uint32_t(b[i+2])<<8)|uint32_t(b[i+3]);
+                 (uint32_t(b[i+2])<<8)|uint32_t(b[i+3]);}
         if (i < n) {
-            uint32_t w = 0, r = n - i;
+            uint32_t w = 0; // NOLINT(readability-identifier-length)
+            uint32_t r = n - i; // NOLINT(readability-identifier-length)
             w |= uint32_t(b[i]) << 24;
-            if (r >= 2) w |= uint32_t(b[i+1]) << 16;
-            if (r >= 3) w |= uint32_t(b[i+2]) << 8;
+            if (r >= 2) {w |= uint32_t(b[i+1]) << 16;}
+            if (r >= 3) {w |= uint32_t(b[i+2]) << 8;}
             s += w;
         }
         return s;

@@ -6,9 +6,9 @@
 
 class TTFTable {
     public:
-    TTFTable(const std::string& tag, uint32_t checksum, uint32_t offset, uint32_t length);
+    TTFTable(std::string tag, uint32_t checksum, uint32_t offset, uint32_t length);
     
-    std::string getTag() const;
+    const std::string& getTag() const;
     uint32_t getChecksum() const;
     uint32_t getOffset() const;
     uint32_t getLength() const;
@@ -22,5 +22,5 @@ private:
     uint32_t offset;
     uint32_t length;
 
-    static uint32_t convertEndian32(uint32_t value);
+
 };

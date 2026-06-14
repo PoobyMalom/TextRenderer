@@ -21,9 +21,9 @@ public:
     uint16_t getSearchRange() const;
     uint16_t getEntrySelector() const;
     uint16_t getRangeShift() const;
-    TableMap getTables() const;
+    const TableMap& getTables() const;
     
-    friend std::ostream& operator<<(std::ostream& os, const TTFHeader& obj);
+    friend std::ostream& operator<<(std::ostream& outStream, const TTFHeader& obj);
 
 private:
     uint32_t scalarType;

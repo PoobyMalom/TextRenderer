@@ -3,10 +3,10 @@
 #include <cstring>
 #include <arpa/inet.h> // For ntohl and ntohs
 
-LocaTable LocaTable::parse(bool is32bit, const std::vector<char>& data, size_t locaOffset, size_t numGlyphs) {
+LocaTable LocaTable::parse(bool is32bit, const std::vector<char>& data, size_t locaOffset, size_t numGlyphs) { // NOLINT(bugprone-easily-swappable-parameters)
     LocaTable locaTable;
     locaTable.is32bitFormat = is32bit;
-    int pos = locaOffset;
+    int pos = static_cast<int>(locaOffset);
 
     if (is32bit) {
         locaTable.offsets32.resize(numGlyphs + 1);

@@ -37,6 +37,7 @@ clang-tidy:
       SDL2_CFLAGS=$(sdl2-config --cflags)
       clang-tidy src/*.cpp main.cpp \
         --checks="bugprone-*,modernize-*,performance-*,readability-*,-readability-magic-numbers,-modernize-use-trailing-return-type" \
+        --header-filter="$(pwd)/(src|include)/.*" \
         --warnings-as-errors="" \
         -- \
         -std=c++17 -Iinclude ${SDL2_CFLAGS}
@@ -54,6 +55,7 @@ cppcheck:
         --error-exitcode=1
         --suppress=missingIncludeSystem
         --suppress=unusedFunction
+        --suppress=useStlAlgorithm
         -Iinclude
         src/ main.cpp
   allow_failure: true
