@@ -14,7 +14,7 @@ class TTFTable {
     uint32_t getLength() const;
     void printTable() const;
 
-    static std::vector<TTFTable*> parseTableDirectory(const std::vector<char>& data, uint16_t numTables);
+    static std::vector<TTFTable> parseTableDirectory(const std::vector<char>& data, uint16_t numTables);
 
 private:
     std::string tag;

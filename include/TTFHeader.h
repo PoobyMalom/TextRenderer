@@ -7,8 +7,8 @@
 #include "TTFTable.h"
 #include <memory>
 
-using TableVec = std::vector<TTFTable*>;
-using TableMap = std::unordered_map<std::string, TTFTable*>;
+using TableVec = std::vector<TTFTable>;
+using TableMap = std::unordered_map<std::string, TTFTable>;
 
 class TTFHeader {
 

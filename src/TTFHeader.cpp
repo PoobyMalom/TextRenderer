@@ -50,11 +50,11 @@ TTFHeader TTFHeader::parse(const std::vector<char>& data) {
     return {scalarType, numTables, searchRange, entrySelector, rangeShift};
 }
 
-TableMap buildTableMap(const vector<TTFTable*>& tables) {
+TableMap buildTableMap(const vector<TTFTable>& tables) {
     TableMap map;
     map.reserve(tables.size());
-    for (TTFTable* table : tables) {
-        map.emplace(table->getTag(), table);
+    for (const TTFTable& table : tables) {
+        map.emplace(table.getTag(), table);
     }
 
     return map;

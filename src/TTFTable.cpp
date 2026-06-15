@@ -18,8 +18,8 @@ void TTFTable::printTable() const {
     cout << "Tag: " << tag << ", Checksum: " << checksum << ", Offset: " << offset << ", Length: " << length << '\n'; 
 }
 
-vector<TTFTable*> TTFTable::parseTableDirectory(const vector<char>& data, uint16_t numTables) {
-    vector<TTFTable*> tables;
+vector<TTFTable> TTFTable::parseTableDirectory(const vector<char>& data, uint16_t numTables) {
+    vector<TTFTable> tables;
 
     int offset = 12;
 
@@ -47,7 +47,7 @@ vector<TTFTable*> TTFTable::parseTableDirectory(const vector<char>& data, uint16
             printf("Table: %s checksum matchs calculated checksum\n", tag.c_str());
         }
 
-        tables.push_back(new TTFTable(tag, checksum, tableOffset, length));
+        tables.emplace_back(TTFTable(tag, checksum, tableOffset, length));
     }
     return tables;
 }

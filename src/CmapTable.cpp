@@ -118,7 +118,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // Prioritize Format 12 (UCS-4)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 10) {
-            cout << "Using format 12" << '\n';
+            // cout << "Using format 12" << '\n';
             return subtable.getGlyphIndex(unicodeValue);
         }
     }
@@ -126,7 +126,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // If no Format 12 found, look for Format 4 (UCS-2)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 1) {
-            cout << "Using format 4" << '\n';
+            // cout << "Using format 4" << '\n';
             return subtable.getGlyphIndex(unicodeValue);
         }
     }
@@ -134,7 +134,7 @@ uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
     // If no Format 4 found, look for Format 0 (Macintosh Roman)
     for (const auto& subtable : subtables) {
         if (subtable.getPlatformID() == 1 && subtable.getEncodingID() == 0) {
-            cout << "Using format 0" << '\n';
+            // cout << "Using format 0" << '\n';
             return subtable.getGlyphIndex(unicodeValue);
         }
     }

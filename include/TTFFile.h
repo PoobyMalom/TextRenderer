@@ -15,7 +15,6 @@ class TTFFile {
 public:
     TTFFile(
         TTFHeader header,
-        std::vector<TTFTable*> tables,
         std::vector<uint32_t> locas,
         const HeadTable& headTable,
         CmapTable cmapTable,
@@ -23,7 +22,6 @@ public:
     );
 
     const TTFHeader& getHeader() const;
-    const std::vector<TTFTable*>& getTables() const;
     const std::vector<uint32_t>& getLocas() const;
     const HeadTable& getHeadTable() const;
     const CmapTable& getCmapTable() const;
@@ -35,7 +33,6 @@ public:
 
 private:
     TTFHeader header;
-    std::vector<TTFTable*> tables;
     std::vector<uint32_t> locas;
     HeadTable headTable;
     CmapTable cmapTable;
