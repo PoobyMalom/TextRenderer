@@ -82,21 +82,21 @@ Subtasks are listed under each item — check them off as you go.
 
 ## MEMORY LEAKS
 
-- [ ] **M1** `TTFTable.cpp:50` — All `TTFTable` objects heap-allocated with `new`, stored in `vector<TTFTable*>`, never deleted.
-  - [ ] Change `TTFTable::parseTableDirectory` return type from `vector<TTFTable*>` to `vector<TTFTable>` in `TTFTable.h`
-  - [ ] Change `tables.push_back(new TTFTable(...))` to `tables.emplace_back(tag, checksum, tableOffset, length)` in `TTFTable.cpp`
-  - [ ] Update `TableVec` alias in `TTFHeader.h` from `vector<TTFTable*>` to `vector<TTFTable>`
-  - [ ] Update `TableMap` alias in `TTFHeader.h` from `unordered_map<string, TTFTable*>` to `unordered_map<string, TTFTable>` (stores by value)
-  - [ ] Update `buildTableMap` in `TTFHeader.cpp` to copy by value: `map.emplace(t.getTag(), t)` (iterating over `const TTFTable&` not `TTFTable*`)
-  - [ ] Update `TTFHeader::tablesList` member from `TableVec` (pointer vec) to `vector<TTFTable>`
-  - [ ] Update `TTFFile.h`: change `vector<TTFTable*> tables` member to `vector<TTFTable>`
-  - [ ] Find all `.cpp` files that call `->` on a `TTFTable*` from these containers and change to `.`
-  - [ ] Compile and confirm no remaining raw `new TTFTable` calls
+- [x] **M1** `TTFTable.cpp:50` — All `TTFTable` objects heap-allocated with `new`, stored in `vector<TTFTable*>`, never deleted.
+  - [x] Change `TTFTable::parseTableDirectory` return type from `vector<TTFTable*>` to `vector<TTFTable>` in `TTFTable.h`
+  - [x] Change `tables.push_back(new TTFTable(...))` to `tables.emplace_back(tag, checksum, tableOffset, length)` in `TTFTable.cpp`
+  - [x] Update `TableVec` alias in `TTFHeader.h` from `vector<TTFTable*>` to `vector<TTFTable>`
+  - [x] Update `TableMap` alias in `TTFHeader.h` from `unordered_map<string, TTFTable*>` to `unordered_map<string, TTFTable>` (stores by value)
+  - [x] Update `buildTableMap` in `TTFHeader.cpp` to copy by value: `map.emplace(t.getTag(), t)` (iterating over `const TTFTable&` not `TTFTable*`)
+  - [x] Update `TTFHeader::tablesList` member from `TableVec` (pointer vec) to `vector<TTFTable>`
+  - [x] Update `TTFFile.h`: change `vector<TTFTable*> tables` member to `vector<TTFTable>`
+  - [x] Find all `.cpp` files that call `->` on a `TTFTable*` from these containers and change to `.`
+  - [x] Compile and confirm no remaining raw `new TTFTable` calls
 
-- [ ] **M2** `TTFFile.cpp:46` — `TTFTable::parseTableDirectory` called a second time inside `TTFFile::parse`, leaking the entire first allocation.
-  - [ ] Remove the line `vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());` from `TTFFile::parse`
-  - [ ] Remove the debug print loop on lines 49–51 that iterates over the now-removed `tables` local (or rewrite it to iterate `header.getTables()` if you want to keep the print)
-  - [ ] Verify nothing downstream in `TTFFile::parse` depended on the local `tables` variable (the `tableMap` from `header.getTables()` is used for all actual lookups)
+- [x] **M2** `TTFFile.cpp:46` — `TTFTable::parseTableDirectory` called a second time inside `TTFFile::parse`, leaking the entire first allocation.
+  - [x] Remove the line `vector<TTFTable*> tables = TTFTable::parseTableDirectory(data, header.getNumTables());` from `TTFFile::parse`
+  - [x] Remove the debug print loop on lines 49–51 that iterates over the now-removed `tables` local (or rewrite it to iterate `header.getTables()` if you want to keep the print)
+  - [x] Verify nothing downstream in `TTFFile::parse` depended on the local `tables` variable (the `tableMap` from `header.getTables()` is used for all actual lookups)
 
 ---
 
