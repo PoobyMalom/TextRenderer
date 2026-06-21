@@ -3,7 +3,7 @@
 #include <cstdint>
 
 class CmapSubtable {
-public: 
+public:
 
     CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t format, const std::vector<char>& data, uint32_t offset); // NOLINT(bugprone-easily-swappable-parameters)
 
@@ -61,4 +61,5 @@ private:
     uint16_t version;
     uint16_t numSubtables;
     std::vector<CmapSubtable> subtables;
+    const CmapSubtable* activeSubtable = nullptr;
 };

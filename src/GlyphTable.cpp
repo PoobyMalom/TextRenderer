@@ -1,7 +1,6 @@
 #include "GlyphTable.h"
 #include "Helpers.h"
 #include "TTFHeader.h"
-#include "MovableLine.h"
 #include <vector>
 #include <tuple>
 #include <iostream>
@@ -25,7 +24,7 @@ Glyph::Glyph(
     xMin(xMin),
     yMin(yMin),
     xMax(xMax),
-    yMax(yMax), 
+    yMax(yMax),
     endPtsOfContours(std::move(endPtsOfContours)),
     instructionLength(instructionLength),
     instructions(std::move(instructions)),
@@ -107,17 +106,15 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t
 }
 
 Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>& locas, uint32_t glyfTableBase, uint32_t componentDataStart, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) { // NOLINT(bugprone-easily-swappable-parameters, readability-function-cognitive-complexity)
+    struct ComponentData { // NOLINT(readability-identifier-length)
+        uint16_t glyphIndex;
+        float a, b, c, d;
+        int16_t dx, dy;
+    };
+
     int pos = static_cast<int>(componentDataStart);
     bool keepGoing = true;
-    vector<uint16_t> glyphIndexs;
-    vector<int16_t> argument1s;
-    vector<int16_t> argument2s;
-    vector<float> as; // NOLINT(readability-identifier-length)
-    vector<float> bs; // NOLINT(readability-identifier-length)
-    vector<float> cs; // NOLINT(readability-identifier-length)
-    vector<float> ds; // NOLINT(readability-identifier-length)
-    vector<float> ms; // NOLINT(readability-identifier-length)
-    vector<float> ns; // NOLINT(readability-identifier-length)
+    vector<ComponentData> components;
 
     while (keepGoing) {
         uint16_t flag = read2Bytes(data, pos);
@@ -131,79 +128,55 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>
         bool weHaveXYScale = (flag >> 6 & 1) != 0;
         bool weHaveTwoByTwo = (flag >> 7 & 1) != 0;
 
-        glyphIndexs.push_back(read2Bytes(data, pos));
+        ComponentData comp{};
+        comp.glyphIndex = read2Bytes(data, pos);
 
-        int16_t argument1;
-        int16_t argument2;
         if (isWord) {
             if (isXY) {
                 // Signed 16-bit xy offsets
-                argument1 = readS16(data, pos);
-                argument2 = readS16(data, pos);
+                comp.dx = readS16(data, pos);
+                comp.dy = readS16(data, pos);
             } else {
                 // Unsigned 16-bit point indices — anchor matching not implemented; consume and zero
                 read2Bytes(data, pos);
                 read2Bytes(data, pos);
-                argument1 = 0;
-                argument2 = 0;
+                comp.dx = 0;
+                comp.dy = 0;
             }
         } else {
             if (isXY) {
                 // Signed 8-bit xy offsets — cast via int8_t to sign-extend
-                argument1 = static_cast<int16_t>(readByte(data, pos));
-                argument2 = static_cast<int16_t>(readByte(data, pos));
+                comp.dx = static_cast<int16_t>(static_cast<int8_t>(readByte(data, pos)));
+                comp.dy = static_cast<int16_t>(static_cast<int8_t>(readByte(data, pos)));
             } else {
                 // Unsigned 8-bit point indices — anchor matching not implemented; consume and zero
                 readByte(data, pos);
                 readByte(data, pos);
-                argument1 = 0;
-                argument2 = 0;
+                comp.dx = 0;
+                comp.dy = 0;
             }
         }
-        argument1s.push_back(argument1);
-        argument2s.push_back(argument2);
 
-        float a = 1.0; // NOLINT(readability-identifier-length)
-        float b = 0.0; // NOLINT(readability-identifier-length)
-        float c = 0.0; // NOLINT(readability-identifier-length)
-        float d = 1.0; // NOLINT(readability-identifier-length)
+        comp.a = 1.0F;
+        comp.b = 0.0F;
+        comp.c = 0.0F;
+        comp.d = 1.0F;
 
-        if (weHaveScale) { // WE_HAVE_A_SCALE
-            auto scale = static_cast<int16_t>((float)(read2Bytes(data, pos)) / 16384.0F);
-            a = scale;
-            d = scale;
-        } else if (weHaveXYScale) { // WE_HAVE_AN_X_AND_Y_SCALE
-            a = static_cast<int16_t>((float)(read2Bytes(data, pos)) / 16384.0F);
-            d = static_cast<int16_t>((float)(read2Bytes(data, pos)) / 16384.0F);
-        } else if (weHaveTwoByTwo) { // WE_HAVE_A_TWO_BY_TWO
-            a = static_cast<int16_t>((float)(read2Bytes(data, pos)) / 16384.0F);
-            b = static_cast<int16_t>((float)(read2Bytes(data, pos)) / 16384.0F);
-            c = static_cast<int16_t>((float)(read2Bytes(data, pos)) / 16384.0F);
-            d = static_cast<int16_t>((float)(read2Bytes(data, pos)) / 16384.0F);
+        if (weHaveScale) {
+            auto scale = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.a = scale;
+            comp.d = scale;
+        } else if (weHaveXYScale) {
+            comp.a = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.d = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+        } else if (weHaveTwoByTwo) {
+            comp.a = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.b = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.c = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.d = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
         }
 
-        as.push_back(a);
-        bs.push_back(b);
-        cs.push_back(c);
-        ds.push_back(d);
-
-        float scaleM0 = max(abs(a), abs(d));
-        float scaleN0 = max(abs(c), abs(d));
-        float scaleM;
-        float scaleN;
-        if ((abs(a) - abs(c)) <= 33.0F / 65536.0F) {
-            scaleM = 2 * scaleM0;
-        } else {
-            scaleM = scaleM0;
-        }
-        if ((abs(b) - abs(d)) <= 33.0F / 65536.0F) {
-            scaleN = 2 * scaleN0;
-        } else {
-            scaleN = scaleN0;
-        }
-
-        ms.push_back(scaleM);
-        ns.push_back(scaleN);
+        components.push_back(comp);
     }
 
     int16_t numberOfContours = 0;
@@ -213,25 +186,26 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>
     vector<uint8_t> flags;
     vector<int16_t> xCoordinatesPush;
     vector<int16_t> yCoordinatesPush;
-    for (u_long i = 0; i < glyphIndexs.size(); ++i) {
+    for (size_t i = 0; i < components.size(); ++i) {
+        const ComponentData& comp = components[i];
         size_t pointOffset = xCoordinatesPush.size();
-        Glyph glyph = Glyph::parseGlyph(data, locas, glyfTableBase, glyfTableBase + locas[glyphIndexs[i]]);
+        Glyph glyph = Glyph::parseGlyph(data, locas, glyfTableBase, glyfTableBase + locas[comp.glyphIndex]);
         numberOfContours = static_cast<int16_t>(glyph.getNumberOfContours() + numberOfContours);
-        for (uint16_t endPtsOfContour : glyph.getEndPtsOfContours()) {
-            endPtsOfContours.push_back(endPtsOfContour + pointOffset);
+        for (uint16_t endPt : glyph.getEndPtsOfContours()) {
+            endPtsOfContours.push_back(static_cast<uint16_t>(endPt + pointOffset));
         }
-        for (uint8_t flag : glyph.getFlags()) {
-            flags.push_back(flag);
+        for (uint8_t f : glyph.getFlags()) {
+            flags.push_back(f);
         }
         instructionLength += glyph.getInstructionLength();
-        for (uint8_t instruction : glyph.getInstructions()) {
-            instructions.push_back(instruction);
+        for (uint8_t instr : glyph.getInstructions()) {
+            instructions.push_back(instr);
         }
-        vector<int16_t> xCoordinates = glyph.getXCoordinates();
-        vector<int16_t> yCoordinates = glyph.getYCoordinates();
-        for (u_long j = 0; j < xCoordinates.size(); ++j) {
-            float xPrime = (as[i] * (float)xCoordinates[j]) + (cs[i] * (float)yCoordinates[j]) + (float)argument1s[i];
-            float yPrime = (bs[i] * (float)xCoordinates[j]) + (ds[i] * (float)yCoordinates[j]) + (float)argument2s[i];
+        const vector<int16_t>& xCoords = glyph.getXCoordinates();
+        const vector<int16_t>& yCoords = glyph.getYCoordinates();
+        for (size_t j = 0; j < xCoords.size(); ++j) {
+            float xPrime = (comp.a * static_cast<float>(xCoords[j])) + (comp.c * static_cast<float>(yCoords[j])) + static_cast<float>(comp.dx);
+            float yPrime = (comp.b * static_cast<float>(xCoords[j])) + (comp.d * static_cast<float>(yCoords[j])) + static_cast<float>(comp.dy);
             xCoordinatesPush.push_back(static_cast<int16_t>(std::round(xPrime)));
             yCoordinatesPush.push_back(static_cast<int16_t>(std::round(yPrime)));
         }
@@ -290,7 +264,7 @@ void Glyph::addPointsBetween() {
                 newYCoordinates.push_back(midY);
                 newFlags.push_back(1); // On-curve point
             } else if (isLastPointOnCurve && isFirstPointOnCurve) {
-                // Add an off-curve point between two on-curve points
+                // Add an off-curve midpoint so straight segments are also driven as Bezier curves
                 auto midX = static_cast<int16_t>((xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2);
                 auto midY = static_cast<int16_t>((yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2);
 
@@ -325,7 +299,7 @@ void Glyph::addPointsBetween() {
                 newYCoordinates.push_back(midY);
                 newFlags.push_back(1); // On-curve point
             } else if (isCurrentOnCurve && isNextOnCurve) {
-                // Add an off-curve point between two on-curve points
+                // Add an off-curve midpoint so straight segments are also driven as Bezier curves
                 auto midX = static_cast<int16_t>((xCoordinates[i] + xCoordinates[nextIndex]) / 2);
                 auto midY = static_cast<int16_t>((yCoordinates[i] + yCoordinates[nextIndex]) / 2);
 
@@ -341,48 +315,6 @@ void Glyph::addPointsBetween() {
     yCoordinates = newYCoordinates;
     flags = newFlags;
     endPtsOfContours = newEndPtsOfContours;
-}
-
-void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, const Glyph& glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness) { // NOLINT(bugprone-easily-swappable-parameters)
-    vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
-
-    int currentContour = 0;
-    int contourStartIndex = 0;
-
-    vector<int16_t> xCoordinates = glyph.getXCoordinates();
-    vector<int16_t> yCoordinates = glyph.getYCoordinates();
-
-    vector<uint8_t> flags = glyph.getFlags();
-    for (u_long j = 0; j < xCoordinates.size(); ++j) {
-        uint8_t flag = flags[j];
-        if (j > endpoints[currentContour]) {
-            contourStartIndex = endpoints[currentContour] + 1;
-            ++currentContour;
-        }
-        if ((flag & 1) != 0) { // If the current point is an on-curve point
-            auto wrapIdx = [&](size_t base, int offset) -> size_t {
-                int len = endpoints[currentContour] - contourStartIndex + 1;
-                return contourStartIndex + ((base - contourStartIndex + offset) % len);
-            };
-            size_t ctrlIdx = wrapIdx(j, 1);
-            size_t endIdx = wrapIdx(j, 2);
-            SDL_Point point1 = {
-                static_cast<int>((xCoordinates[j] * scalingFactor) + xOffset),
-                static_cast<int>(screenHeight - (yCoordinates[j] * scalingFactor) + yOffset)
-            };
-            SDL_Point controlPoint = {
-                static_cast<int>((xCoordinates[ctrlIdx] * scalingFactor) + xOffset),
-                static_cast<int>(screenHeight - (yCoordinates[ctrlIdx] * scalingFactor) + yOffset)
-            };
-            SDL_Point point2 = {
-                static_cast<int>((xCoordinates[endIdx] * scalingFactor) + xOffset),
-                static_cast<int>(screenHeight - (yCoordinates[endIdx] * scalingFactor) + yOffset)
-            };
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            DrawBezier(renderer, point1, controlPoint, point2);
-            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        }
-    }
 }
 
 void Glyph::printGlyph() {
