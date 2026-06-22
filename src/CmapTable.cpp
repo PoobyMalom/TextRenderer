@@ -109,17 +109,17 @@ CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
         subtables.emplace_back(platformID, encodingID, format, data, offset + subtableOffset);
     }
 
-    for (const auto& subtable : subtables) {
-        if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 10) { activeSubtable = &subtable; break; }
+    for (size_t i = 0; i < subtables.size(); ++i) {
+        if (subtables[i].getPlatformID() == 3 && subtables[i].getEncodingID() == 10) { activeSubtableIndex = static_cast<int>(i); break; }
     }
-    if (!activeSubtable) {
-        for (const auto& subtable : subtables) {
-            if (subtable.getPlatformID() == 3 && subtable.getEncodingID() == 1) { activeSubtable = &subtable; break; }
+    if (activeSubtableIndex == -1) {
+        for (size_t i = 0; i < subtables.size(); ++i) {
+            if (subtables[i].getPlatformID() == 3 && subtables[i].getEncodingID() == 1) { activeSubtableIndex = static_cast<int>(i); break; }
         }
     }
-    if (!activeSubtable) {
-        for (const auto& subtable : subtables) {
-            if (subtable.getPlatformID() == 1 && subtable.getEncodingID() == 0) { activeSubtable = &subtable; break; }
+    if (activeSubtableIndex == -1) {
+        for (size_t i = 0; i < subtables.size(); ++i) {
+            if (subtables[i].getPlatformID() == 1 && subtables[i].getEncodingID() == 0) { activeSubtableIndex = static_cast<int>(i); break; }
         }
     }
 }
@@ -127,8 +127,9 @@ CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
 CmapTable CmapTable::parse(const std::vector<char>& data, uint32_t offset) { return {data, offset}; }
 
 uint16_t CmapTable::getGlyphIndex(uint32_t unicodeValue) const {
-    if (!activeSubtable) {
+    if (activeSubtableIndex == -1) {
         throw std::runtime_error("no supported cmap subtable found");
     }
-    return activeSubtable->getGlyphIndex(unicodeValue);
+    const CmapSubtable& active = subtables[activeSubtableIndex];
+    return active.getGlyphIndex(unicodeValue);
 }

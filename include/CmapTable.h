@@ -61,5 +61,5 @@ private:
     uint16_t version;
     uint16_t numSubtables;
     std::vector<CmapSubtable> subtables;
-    const CmapSubtable* activeSubtable = nullptr;
+    int activeSubtableIndex = -1;
 };
