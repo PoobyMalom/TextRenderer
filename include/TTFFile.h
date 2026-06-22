@@ -1,5 +1,4 @@
-#ifndef TTFFILE_H
-#define TTFFILE_H
+#pragma once
 
 #include "TTFHeader.h"
 #include "TTFTable.h"
@@ -39,4 +38,3 @@ private:
     MaxpTable maxpTable;
 };
 
-#endif // TTFFILE_H

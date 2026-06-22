@@ -11,7 +11,7 @@ MaxpTable MaxpTable::parseMaxpDirectory(const std::vector<char>& data, uint16_t 
     uint16_t maxComponentPoints = read2Bytes(data, pos);
     uint16_t maxComponentContours = read2Bytes(data, pos);
     uint16_t maxZones = read2Bytes(data, pos);
-    uint16_t maxTwighlightPoints = read2Bytes(data, pos);
+    uint16_t maxTwilightPoints = read2Bytes(data, pos);
     uint16_t maxStorage = read2Bytes(data, pos);
     uint16_t maxFunctionDefs = read2Bytes(data, pos);
     uint16_t maxInstructionDefs = read2Bytes(data, pos);
@@ -28,7 +28,7 @@ MaxpTable MaxpTable::parseMaxpDirectory(const std::vector<char>& data, uint16_t 
         maxComponentPoints,
         maxComponentContours,
         maxZones,
-        maxTwighlightPoints,
+        maxTwilightPoints,
         maxStorage,
         maxFunctionDefs,
         maxInstructionDefs,
