@@ -28,7 +28,7 @@ struct MaxpTable {
     uint16_t maxComponentPoints;
     uint16_t maxComponentContours;
     uint16_t maxZones;
-    uint16_t maxTwighlightPoints;
+    uint16_t maxTwilightPoints;
     uint16_t maxStorage;
     uint16_t maxFunctionDefs;
     uint16_t maxInstructionDefs;

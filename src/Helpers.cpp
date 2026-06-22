@@ -3,6 +3,9 @@
 #include <sstream>
 #include <iomanip>
 #include <cstring>
+#include <array>
+
+using namespace std;
 
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2) {
     // Check if the control point is collinear with the start and end points
@@ -19,31 +22,31 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     int numPoints = 20; // Increase the number of points for a smoother curve
     float t = 0.0; // NOLINT(readability-identifier-length)
     float step = 1.0F / static_cast<float>(numPoints);
-    std::vector<SDL_Point> points;
+    std::array<SDL_Point, 21> points;
+    int pointCount = 0;
 
     for (int i = 0; i <= numPoints; i++) {
         float x = (((1 - t) * (1 - t)) * (float)point1.x) + (2 * (1 - t) * t * (float)controlPoint.x) + ((t * t) * (float)point2.x); // NOLINT(readability-identifier-length)
         float y = (((1 - t) * (1 - t)) * (float)point1.y) + (2 * (1 - t) * t * (float)controlPoint.y) + ((t * t) * (float)point2.y); // NOLINT(readability-identifier-length)
-        SDL_Point point = { static_cast<int>(x), static_cast<int>(y) };
-        points.push_back(point);
+        points[pointCount++] = { static_cast<int>(x), static_cast<int>(y) };
         t += step;
     }
 
     // Line simplification: remove consecutive points that are too close to each other
-    std::vector<SDL_Point> simplifiedPoints;
-    const int distanceThreshold = 1; // Distance threshold for simplification
-    simplifiedPoints.push_back(points.front());
+    std::array<SDL_Point, 21> simplified;
+    int simplifiedCount = 0;
+    const int distanceThreshold = 1;
+    simplified[simplifiedCount++] = points[0];
 
-    for (size_t i = 1; i < points.size(); ++i) {
-        if (std::abs(points[i].x - simplifiedPoints.back().x) > distanceThreshold ||
-            std::abs(points[i].y - simplifiedPoints.back().y) > distanceThreshold) {
-            simplifiedPoints.push_back(points[i]);
+    for (int i = 1; i < pointCount; ++i) {
+        if (std::abs(points[i].x - simplified[simplifiedCount - 1].x) > distanceThreshold ||
+            std::abs(points[i].y - simplified[simplifiedCount - 1].y) > distanceThreshold) {
+            simplified[simplifiedCount++] = points[i];
         }
     }
 
-    // Draw the simplified points
-    for (size_t i = 1; i < simplifiedPoints.size(); ++i) {
-        SDL_RenderDrawLine(renderer, simplifiedPoints[i - 1].x, simplifiedPoints[i - 1].y, simplifiedPoints[i].x, simplifiedPoints[i].y);
+    for (int i = 1; i < simplifiedCount; ++i) {
+        SDL_RenderDrawLine(renderer, simplified[i - 1].x, simplified[i - 1].y, simplified[i].x, simplified[i].y);
     }
 }
 
@@ -80,23 +83,6 @@ vector<uint32_t> stringToUnicode(const string& input) {
     return unicodePoints;
 }
 
-string hexToAscii(uint32_t value) {
-    /*
-    Convert from hex string to ASCII character
-    */
-    std::stringstream stream;
-    stream << hex << uppercase << setw(8) << setfill('0') << value;
-    string hexString = stream.str();
-    string ascii;
-    for (size_t i = 0; i < hexString.length(); i += 2) {
-        // Convert each pair of hex digits to an integer
-        string byteString = hexString.substr(i, 2);
-        char byte = static_cast<char>(stoi(byteString, nullptr, 16));
-        ascii.push_back(byte);
-    }
-    return ascii;
-}
-
 uint32_t findUnicodevector(const vector<uint32_t>& startCharCodes, const vector<uint32_t>& endCharCodes, const vector<uint32_t>& startGlyphCodes, uint16_t value) {
     for (int i = 0; i < static_cast<int>(startCharCodes.size()); ++i) {
         if (value >= startCharCodes[i] && value <= endCharCodes[i]) {
@@ -112,10 +98,6 @@ SDL_Point getBezierPoint(const SDL_Point point1, const SDL_Point controlPoint, c
     temp.x = (int)((((1 - t) * (1 - t)) * (float)point1.x) + (2 * (1 - t) * t * (float)controlPoint.x) + ((t * t) * (float)point3.x));
     temp.y = (int)((((1 - t) * (1 - t)) * (float)point1.y) + (2 * (1 - t) * t * (float)controlPoint.y) + ((t * t) * (float)point3.y));
     return temp;
-}
-
-uint8_t convertEndian8(uint8_t value) {
-    return (value >> 4) | (value << 4);
 }
 
 uint16_t convertEndian16(uint16_t value) {
@@ -166,7 +148,7 @@ int16_t readS16(const std::vector<char>& data, int& offset) {
 }
 
 // Sum a table exactly as per TTF spec (big-endian words, zero-padded to 4 bytes)
-uint32_t CalcTableChecksum(const std::vector<char>& data, uint32_t offset, uint32_t length) {
+uint32_t calcTableChecksum(const std::vector<char>& data, uint32_t offset, uint32_t length) {
     if (offset > data.size() || length > data.size() - offset) {
         throw std::out_of_range("Table range out of bounds");
     }
@@ -178,7 +160,7 @@ uint32_t CalcTableChecksum(const std::vector<char>& data, uint32_t offset, uint3
 
     // Sum full 4-byte big-endian words
     for (; i + 4 <= length; i += 4) {
-        uint32_t width = (uint32_t(bytes[i])   << 24) | 
+        uint32_t width = (uint32_t(bytes[i])   << 24) |
                      (uint32_t(bytes[i+1]) << 16) |
                      (uint32_t(bytes[i+2]) <<  8) |
                      (uint32_t(bytes[i+3])      );

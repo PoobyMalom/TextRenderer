@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <iostream>
 
+using namespace std;
+
 /*
 Notably most of this subtable is not used but might be implemented later if rewritten in c
 In c without a custom class for the header you can use the searchrange, entryselector, and range shift
@@ -17,7 +19,7 @@ TTFHeader::TTFHeader(uint32_t scalarType, uint16_t numTables, uint16_t searchRan
                     the value 'OTTO' (0x4F54544F) indicates an OpenType font with PostScript outlines (that is, a 'CFF' table instead of 'GLYF')
                     other values not currently supported
         numTables: Number of tables listed in the file
-        searchRange:  the largest power of two less than or equal to the number of items in the table, 
+        searchRange:  the largest power of two less than or equal to the number of items in the table,
                       i.e. the largest number of items that can be easily searched.
         rangeShift: rangeShift is the number of items minus searchRange; i.e. the number of items that will not get looked at if you only look at searchRange items.
                     Before the search loop starts, compare the target item to the item with number rangeShift. If the target item is less than rangeShift, s
@@ -29,14 +31,13 @@ TTFHeader::TTFHeader(uint32_t scalarType, uint16_t numTables, uint16_t searchRan
 
 TTFHeader TTFHeader::parse(const std::vector<char>& data) {
     int offset = 0;
-    uint32_t scalarType = read4Bytes(data, offset); 
-    uint16_t numTables = read2Bytes(data, offset); 
+    uint32_t scalarType = read4Bytes(data, offset);
+    uint16_t numTables = read2Bytes(data, offset);
     uint16_t searchRange = read2Bytes(data, offset);
     uint16_t entrySelector = read2Bytes(data, offset);
     uint16_t rangeShift = read2Bytes(data, offset);
 
     if (scalarType == 0x74727565 || scalarType == 0x00010000) {
-        cout << "ttf format detected\n";
         return {scalarType, numTables, searchRange, entrySelector, rangeShift};
     } if (scalarType == 0x74797931) {
         cerr << "typ1 format detected, file format not yet supported\n";
@@ -50,7 +51,7 @@ TTFHeader TTFHeader::parse(const std::vector<char>& data) {
     return {scalarType, numTables, searchRange, entrySelector, rangeShift};
 }
 
-TableMap buildTableMap(const vector<TTFTable>& tables) {
+static TableMap buildTableMap(const vector<TTFTable>& tables) {
     TableMap map;
     map.reserve(tables.size());
     for (const TTFTable& table : tables) {
@@ -74,10 +75,10 @@ uint16_t TTFHeader::getRangeShift() const { return rangeShift; }
 const TableMap& TTFHeader::getTables() const { return tables; }
 
 std::ostream& operator<<(std::ostream& outStream, const TTFHeader& obj) {
-    outStream << "Offset Subtable (ScalarType: " << obj.scalarType << 
-    ", NumTables: " << obj.numTables << 
-    ", SearchRange: " << obj.searchRange << 
-    ", EntrySelector: " << obj.entrySelector << 
+    outStream << "Offset Subtable (ScalarType: " << obj.scalarType <<
+    ", NumTables: " << obj.numTables <<
+    ", SearchRange: " << obj.searchRange <<
+    ", EntrySelector: " << obj.entrySelector <<
     ", RangeShift: " << obj.rangeShift << ")" << '\n';
     return outStream;
 }

@@ -20,6 +20,7 @@
 #include "TTFFile.h"
 #include "Helpers.h"
 #include "SDLInitializer.h"
+#include "Renderer.h"
 using namespace std;
 
 double scalingFactor = 0.1;
@@ -31,7 +32,12 @@ const int CANVAS_WIDTH  = 10000;
 const int CANVAS_HEIGHT = 10000;
 const int SCROLL_SPEED  = 20;
 
-void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewportY) { // NOLINT(bugprone-easily-swappable-parameters)
+// TODO: replace with per-glyph hmtx.getAdvanceWidth() / hhea.ascender once hmtx is parsed
+constexpr int NOMINAL_ADVANCE_UNITS     = 600;
+constexpr int NOMINAL_LINE_HEIGHT_UNITS = 1320;
+
+void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewportY, // NOLINT(bugprone-easily-swappable-parameters)
+                 bool& canvasDirty, int& advanceWidth, int& advanceHeight) {
     if (evt.type == SDL_QUIT) {
         quit = true;
     } else if (evt.type == SDL_KEYDOWN) {
@@ -55,10 +61,16 @@ void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewport
             case SDLK_PLUS:
             case SDLK_EQUALS:
                 scalingFactor += 0.01;
+                advanceWidth  = static_cast<int>(NOMINAL_ADVANCE_UNITS     * scalingFactor);
+                advanceHeight = static_cast<int>(NOMINAL_LINE_HEIGHT_UNITS  * scalingFactor);
+                canvasDirty = true;
                 break;
             case SDLK_MINUS:
                 scalingFactor -= 0.01;
                 scalingFactor = std::max(scalingFactor, 0.01);
+                advanceWidth  = static_cast<int>(NOMINAL_ADVANCE_UNITS     * scalingFactor);
+                advanceHeight = static_cast<int>(NOMINAL_LINE_HEIGHT_UNITS  * scalingFactor);
+                canvasDirty = true;
                 break;
             default:
                 break;
@@ -74,33 +86,35 @@ void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewport
 }
 
 void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
-                 const vector<Glyph>& glyphs, int viewportX, int viewportY) {
-    const int advanceWidth  = static_cast<int>(600  * scalingFactor);
-    const int advanceHeight = static_cast<int>(1320 * scalingFactor);
+                 const vector<Glyph>& glyphs, int viewportX, int viewportY,
+                 bool& canvasDirty, int advanceWidth, int advanceHeight) {
+    if (canvasDirty) {
+        SDL_SetRenderTarget(renderer, canvasTexture);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
-    SDL_SetRenderTarget(renderer, canvasTexture);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        int currentXOffset = 0;
+        int currentYOffset = 100;
 
-    int currentXOffset = 0;
-    int currentYOffset = 100;
-
-    for (size_t i = 0; i < glyphs.size(); ++i) {
-        if (currentXOffset >= CANVAS_WIDTH - advanceWidth) {
-            currentXOffset = 0;
-            currentYOffset += advanceHeight;
+        for (size_t i = 0; i < glyphs.size(); ++i) {
+            if (currentXOffset >= CANVAS_WIDTH - advanceWidth) {
+                currentXOffset = 0;
+                currentYOffset += advanceHeight;
+            }
+            try {
+                drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset,
+                                       scalingFactor, SCREEN_HEIGHT, thickness);
+            } catch (const std::exception& err) {
+                cerr << "Error drawing glyph " << i << ": " << err.what() << '\n';
+            }
+            currentXOffset += advanceWidth;
         }
-        try {
-            Glyph::drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset,
-                                   scalingFactor, SCREEN_HEIGHT, thickness);
-        } catch (const std::exception& err) {
-            cerr << "Error drawing glyph " << i << ": " << err.what() << '\n';
-        }
-        currentXOffset += advanceWidth;
+
+        SDL_SetRenderTarget(renderer, nullptr);
+        canvasDirty = false;
     }
 
-    SDL_SetRenderTarget(renderer, nullptr);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
@@ -147,20 +161,24 @@ int main() {
 
     SDL_Window*   window        = initializeWindow("text_renderer", SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_Renderer* renderer      = initializeRenderer(window);
-    SDL_Texture*  canvasTexture = intializeTexture(renderer, window, CANVAS_WIDTH, CANVAS_HEIGHT);
+    SDL_Texture*  canvasTexture = initializeTexture(renderer, window, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     int viewportX = 0;
     int viewportY = 0;
 
-    bool quit = false;
+    int advanceWidth  = static_cast<int>(NOMINAL_ADVANCE_UNITS     * scalingFactor);
+    int advanceHeight = static_cast<int>(NOMINAL_LINE_HEIGHT_UNITS  * scalingFactor);
+    bool canvasDirty  = true;
+    bool quit         = false;
     SDL_Event evt;
 
     while (!quit) {
         while (SDL_PollEvent(&evt) != 0) {
-            handleEvent(evt, quit, viewportX, viewportY);
+            handleEvent(evt, quit, viewportX, viewportY, canvasDirty, advanceWidth, advanceHeight);
         }
 
-        renderFrame(renderer, canvasTexture, glyphs, viewportX, viewportY);
+        renderFrame(renderer, canvasTexture, glyphs, viewportX, viewportY,
+                    canvasDirty, advanceWidth, advanceHeight);
 
         frameCount++;
         Uint32 elapsedTime = SDL_GetTicks() - startTime;
