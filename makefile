@@ -18,12 +18,14 @@ OBJDIR := build
 SRCS := main.cpp \
         src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
         src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
-        src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/Renderer.cpp
+        src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/Renderer.cpp \
+        src/Metrics.cpp
 
 TEST_SRCS := tests/test_helpers.cpp \
              src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
              src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
-             src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/Renderer.cpp
+             src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/Renderer.cpp \
+             src/Metrics.cpp
 
 # All objects go under build/
 MAIN_OBJ := $(OBJDIR)/main.o

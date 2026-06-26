@@ -19,7 +19,9 @@ Glyph::Glyph(
     vector<uint8_t> instructions,
     vector<uint8_t> flags,
     vector<int16_t> xCoordinates,
-    vector<int16_t> yCoordinates
+    vector<int16_t> yCoordinates,
+    uint16_t advanceWidth,
+    int16_t leftSideBearing
 ) : numberOfContours(numberOfContours),
     xMin(xMin),
     yMin(yMin),
@@ -30,7 +32,9 @@ Glyph::Glyph(
     instructions(std::move(instructions)),
     flags(std::move(flags)),
     xCoordinates(std::move(xCoordinates)),
-    yCoordinates(std::move(yCoordinates)) {}
+    yCoordinates(std::move(yCoordinates)),
+    advanceWidth(advanceWidth),
+    leftSideBearing(leftSideBearing) {}
 
 int16_t Glyph::getNumberOfContours() const { return numberOfContours; }
 int16_t Glyph::getXMin() const { return xMin; }
@@ -43,6 +47,16 @@ const vector<uint8_t>& Glyph::getInstructions() const { return instructions; }
 const vector<uint8_t>& Glyph::getFlags() const { return flags; }
 const vector<int16_t>& Glyph::getXCoordinates() const { return xCoordinates; }
 const vector<int16_t>& Glyph::getYCoordinates() const { return yCoordinates; }
+uint16_t Glyph::getAdvanceWidth() const { return advanceWidth; }
+int16_t Glyph::getLeftSideBearing() const { return leftSideBearing; }
+
+void Glyph::setAdvanceWidth(uint16_t width) {
+    advanceWidth = width;
+}
+
+void Glyph::setLeftSideBearing(int16_t lsb) {
+    leftSideBearing = lsb;
+}
 
 Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) { // NOLINT(bugprone-easily-swappable-parameters)
     int pos = static_cast<int>(offset);
@@ -102,7 +116,7 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t
         yCoordinates.push_back(currentY);
     }
 
-    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates};
+    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates, 0, 0};
 }
 
 Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>& locas, uint32_t glyfTableBase, uint32_t componentDataStart, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) { // NOLINT(bugprone-easily-swappable-parameters, readability-function-cognitive-complexity)
@@ -211,7 +225,7 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>
         }
     }
 
-    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush};
+    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush, 0, 0};
 }
 
 

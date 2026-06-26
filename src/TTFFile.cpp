@@ -9,18 +9,21 @@ TTFFile::TTFFile(
     vector<uint32_t> locas,
     const HeadTable& headTable,
     CmapTable cmapTable,
-    const MaxpTable& maxpTable
+    const MaxpTable& maxpTable,
+    const Metrics& metricsTable
 ) : header(move(header)),
     locas(move(locas)),
     headTable(headTable),
     cmapTable(move(cmapTable)),
-    maxpTable(maxpTable) {}
+    maxpTable(maxpTable),
+    metricsTable(metricsTable) {}
 
 const TTFHeader& TTFFile::getHeader() const { return header; }
 const vector<uint32_t>& TTFFile::getLocas() const { return locas; }
 const HeadTable& TTFFile::getHeadTable() const { return headTable; }
 const CmapTable& TTFFile::getCmapTable() const { return cmapTable; }
 const MaxpTable& TTFFile::getMaxpTable() const { return maxpTable; }
+const Metrics&   TTFFile::getMetricsTable() const { return metricsTable; }
 
 TTFFile TTFFile::parse(const vector<char>& data) {
     TTFHeader header = TTFHeader::parse(data);
@@ -29,21 +32,26 @@ TTFFile TTFFile::parse(const vector<char>& data) {
 
     HeadTable headTable = HeadTable::parseHeadDirectory(data, tableMap.at("head").getOffset());
     MaxpTable maxpTable = MaxpTable::parseMaxpDirectory(data, tableMap.at("maxp").getOffset());
+    Metrics   metricsTable = {};
+    metricsTable.getMetrics(data, tableMap.at("hhea").getOffset(), tableMap.at("hmtx").getOffset(), maxpTable.numGlyphs);
     bool indexToLocFormat = static_cast<bool>(headTable.indexToLocFormat);
     LocaTable locaTable = LocaTable::parse(indexToLocFormat, data, tableMap.at("loca").getOffset(), maxpTable.numGlyphs);
 
     const vector<uint32_t>& locas = locaTable.getOffsets();
 
     CmapTable cmapTable = CmapTable::parse(data, tableMap.at("cmap").getOffset());
-    return {header, locas, headTable, cmapTable, maxpTable};
+    return {header, locas, headTable, cmapTable, maxpTable, metricsTable};
 }
 
 Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode) {
+    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicode);
+
     if (unicode == 32) {
-        return Glyph{0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}};
+        Glyph space = {0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}, 0, 0};
+        space.setAdvanceWidth(metricsTable.getLongHorMetrics()[glyphIndex].advanceWidth);
+        return space;
     }
 
-    uint16_t glyphIndex = cmapTable.getGlyphIndex(unicode);
 
     if (glyphIndex >= locas.size()) {
         cerr << "Invalid glyph index: " << glyphIndex << '\n';
@@ -65,6 +73,8 @@ Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode) {
         throw out_of_range("Glyph offset out of range");
     }
     Glyph parsedGlyph = Glyph::parseGlyph(data, locas, glyfOffset, glyphOffset);
+    parsedGlyph.setAdvanceWidth(metricsTable.getLongHorMetrics()[glyphIndex].advanceWidth);
+    parsedGlyph.setLeftSideBearing(metricsTable.getLongHorMetrics()[glyphIndex].leftSideBearing);
     parsedGlyph.addPointsBetween();
     return parsedGlyph;
 }

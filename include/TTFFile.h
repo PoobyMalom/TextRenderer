@@ -7,6 +7,7 @@
 #include "MaxpTable.h"
 #include "LocaTable.h"
 #include "GlyphTable.h"
+#include "Metrics.h"
 #include <vector>
 #include <string>
 
@@ -17,7 +18,8 @@ public:
         std::vector<uint32_t> locas,
         const HeadTable& headTable,
         CmapTable cmapTable,
-        const MaxpTable& maxpTable
+        const MaxpTable& maxpTable,
+        const Metrics& metricsTable
     );
 
     const TTFHeader& getHeader() const;
@@ -25,6 +27,7 @@ public:
     const HeadTable& getHeadTable() const;
     const CmapTable& getCmapTable() const;
     const MaxpTable& getMaxpTable() const;
+    const Metrics& getMetricsTable() const;
 
     static TTFFile parse(const std::vector<char>& data);
     Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode);
@@ -36,5 +39,6 @@ private:
     HeadTable headTable;
     CmapTable cmapTable;
     MaxpTable maxpTable;
+    Metrics   metricsTable;
 };
 

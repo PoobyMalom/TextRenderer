@@ -16,6 +16,7 @@
 #include "MaxpTable.h"
 #include "CmapTable.h"
 #include "LocaTable.h"
+#include "Metrics.h"
 #include "GlyphTable.h"
 #include "TTFFile.h"
 #include "Helpers.h"
@@ -26,18 +27,14 @@ using namespace std;
 double scalingFactor = 0.1;
 int thickness = 2;
 
-const int SCREEN_WIDTH  = 1400;
-const int SCREEN_HEIGHT = 1320;
+const int SCREEN_WIDTH  = 1920;
+const int SCREEN_HEIGHT = 1080;
 const int CANVAS_WIDTH  = 10000;
 const int CANVAS_HEIGHT = 10000;
 const int SCROLL_SPEED  = 20;
 
-// TODO: replace with per-glyph hmtx.getAdvanceWidth() / hhea.ascender once hmtx is parsed
-constexpr int NOMINAL_ADVANCE_UNITS     = 600;
-constexpr int NOMINAL_LINE_HEIGHT_UNITS = 1320;
-
 void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewportY, // NOLINT(bugprone-easily-swappable-parameters)
-                 bool& canvasDirty, int& advanceWidth, int& advanceHeight) {
+                 bool& canvasDirty, int& advanceHeight, int lineHeightUnits) {
     if (evt.type == SDL_QUIT) {
         quit = true;
     } else if (evt.type == SDL_KEYDOWN) {
@@ -61,15 +58,13 @@ void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewport
             case SDLK_PLUS:
             case SDLK_EQUALS:
                 scalingFactor += 0.01;
-                advanceWidth  = static_cast<int>(NOMINAL_ADVANCE_UNITS     * scalingFactor);
-                advanceHeight = static_cast<int>(NOMINAL_LINE_HEIGHT_UNITS  * scalingFactor);
+                advanceHeight = static_cast<int>(lineHeightUnits * scalingFactor);
                 canvasDirty = true;
                 break;
             case SDLK_MINUS:
                 scalingFactor -= 0.01;
                 scalingFactor = std::max(scalingFactor, 0.01);
-                advanceWidth  = static_cast<int>(NOMINAL_ADVANCE_UNITS     * scalingFactor);
-                advanceHeight = static_cast<int>(NOMINAL_LINE_HEIGHT_UNITS  * scalingFactor);
+                advanceHeight = static_cast<int>(lineHeightUnits * scalingFactor);
                 canvasDirty = true;
                 break;
             default:
@@ -87,7 +82,7 @@ void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewport
 
 void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
                  const vector<Glyph>& glyphs, int viewportX, int viewportY,
-                 bool& canvasDirty, int advanceWidth, int advanceHeight) {
+                 bool& canvasDirty, int initialYOffset, int advanceHeight) {
     if (canvasDirty) {
         SDL_SetRenderTarget(renderer, canvasTexture);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -95,10 +90,10 @@ void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
         int currentXOffset = 0;
-        int currentYOffset = 100;
+        int currentYOffset = initialYOffset;
 
         for (size_t i = 0; i < glyphs.size(); ++i) {
-            if (currentXOffset >= CANVAS_WIDTH - advanceWidth) {
+            if (currentXOffset >= CANVAS_WIDTH - glyphs[i].getAdvanceWidth() * scalingFactor) {
                 currentXOffset = 0;
                 currentYOffset += advanceHeight;
             }
@@ -108,7 +103,7 @@ void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
             } catch (const std::exception& err) {
                 cerr << "Error drawing glyph " << i << ": " << err.what() << '\n';
             }
-            currentXOffset += advanceWidth;
+            currentXOffset += glyphs[i].getAdvanceWidth() * scalingFactor;
         }
 
         SDL_SetRenderTarget(renderer, nullptr);
@@ -124,7 +119,7 @@ void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
 }
 
 int main() {
-    string fileName = "src/fonts/JetBrainsMono-Bold.ttf";
+    string fileName = "src/fonts/papyrus.ttf";
     ifstream file(fileName, ios::binary);
 
     if (!file.is_open()) {
@@ -147,9 +142,14 @@ int main() {
 
     TTFFile ttfFile = TTFFile::parse(buffer);
 
+    int lineHeightUnits = ttfFile.getMetricsTable().getHheaTable().ascent - ttfFile.getMetricsTable().getHheaTable().descent + ttfFile.getMetricsTable().getHheaTable().lineGap;
+    int advanceHeight = static_cast<int>(lineHeightUnits * scalingFactor);
+    cout << advanceHeight << "\n";
+    int initialYOffset = ttfFile.getMetricsTable().getHheaTable().ascent * scalingFactor;
+
     vector<Glyph> glyphs;
     try {
-        const string textToRender = "The unanimous Declaration of the thirteen united States of America";
+        const string textToRender = "The unanimous Declaration of the thirteen united States of America and the lazy dog that jumped over that fox or something + - ,.<> hello (*& @#^ !@#%%# {}|}{|})";
         glyphs = ttfFile.parseGlyphs(buffer, textToRender);
     } catch (const std::exception& err) {
         cerr << "Error parsing glyphs: " << err.what() << '\n';
@@ -166,19 +166,17 @@ int main() {
     int viewportX = 0;
     int viewportY = 0;
 
-    int advanceWidth  = static_cast<int>(NOMINAL_ADVANCE_UNITS     * scalingFactor);
-    int advanceHeight = static_cast<int>(NOMINAL_LINE_HEIGHT_UNITS  * scalingFactor);
     bool canvasDirty  = true;
     bool quit         = false;
     SDL_Event evt;
 
     while (!quit) {
         while (SDL_PollEvent(&evt) != 0) {
-            handleEvent(evt, quit, viewportX, viewportY, canvasDirty, advanceWidth, advanceHeight);
+            handleEvent(evt, quit, viewportX, viewportY, canvasDirty, advanceHeight, lineHeightUnits);
         }
 
         renderFrame(renderer, canvasTexture, glyphs, viewportX, viewportY,
-                    canvasDirty, advanceWidth, advanceHeight);
+                    canvasDirty, initialYOffset, advanceHeight);
 
         frameCount++;
         Uint32 elapsedTime = SDL_GetTicks() - startTime;

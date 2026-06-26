@@ -16,7 +16,9 @@ public:
         std::vector<uint8_t> instructions,
         std::vector<uint8_t> flags,
         std::vector<int16_t> xCoordinates,
-        std::vector<int16_t> yCoordinates
+        std::vector<int16_t> yCoordinates,
+        uint16_t advanceWidth,
+        int16_t leftSideBearing
     );
 
     int16_t getNumberOfContours() const;
@@ -30,6 +32,10 @@ public:
     const std::vector<uint8_t>& getFlags() const;
     const std::vector<int16_t>& getXCoordinates() const;
     const std::vector<int16_t>& getYCoordinates() const;
+    uint16_t getAdvanceWidth() const;
+    int16_t getLeftSideBearing() const;
+    void setAdvanceWidth(uint16_t width);
+    void setLeftSideBearing(int16_t lsb);
 
     static Glyph parseGlyph(const std::vector<char>& data, const std::vector<uint32_t>& locas, uint32_t glyfTableBase, uint32_t glyphOffset);
     static Glyph parseSimpleGlyph(const std::vector<char>& data, uint32_t offset, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax);
@@ -49,6 +55,8 @@ private:
     std::vector<uint8_t> flags;
     std::vector<int16_t> xCoordinates;
     std::vector<int16_t> yCoordinates;
+    uint16_t advanceWidth;
+    int16_t leftSideBearing;
 
     static uint16_t convertEndian16(uint16_t value);
     static uint32_t convertEndian32(uint32_t value);
