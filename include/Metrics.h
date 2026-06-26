@@ -31,6 +31,7 @@ struct longHorMetric {
 
 class Metrics {
 public:
+  Metrics() : hheaTable{}, longHorMetrics{}, leftSideBearings{} {}
 
   const HheaTable& getHheaTable() const;
   const std::vector<longHorMetric>& getLongHorMetrics() const;
