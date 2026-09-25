@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <tuple>
+#include "FontTypes.h"
 
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2);
 std::vector<uint32_t> stringToUnicode(const std::string& input);

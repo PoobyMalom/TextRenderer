@@ -31,6 +31,7 @@ TTFFile TTFFile::parse(const vector<char>& data) {
     TableMap tableMap = header.getTables();
 
     HeadTable headTable = HeadTable::parseHeadDirectory(data, tableMap.at("head").getOffset());
+    cout << "Units per em: " << headTable.unitsPerEm << "\n";
     MaxpTable maxpTable = MaxpTable::parseMaxpDirectory(data, tableMap.at("maxp").getOffset());
     Metrics   metricsTable = {};
     metricsTable.getMetrics(data, tableMap.at("hhea").getOffset(), tableMap.at("hmtx").getOffset(), maxpTable.numGlyphs);
@@ -43,7 +44,7 @@ TTFFile TTFFile::parse(const vector<char>& data) {
     return {header, locas, headTable, cmapTable, maxpTable, metricsTable};
 }
 
-Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode) {
+Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode, bool insertBezierMidpoints) {
     uint16_t glyphIndex = cmapTable.getGlyphIndex(unicode);
 
     if (unicode == 32) {
@@ -75,7 +76,9 @@ Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode) {
     Glyph parsedGlyph = Glyph::parseGlyph(data, locas, glyfOffset, glyphOffset);
     parsedGlyph.setAdvanceWidth(metricsTable.getLongHorMetrics()[glyphIndex].advanceWidth);
     parsedGlyph.setLeftSideBearing(metricsTable.getLongHorMetrics()[glyphIndex].leftSideBearing);
-    parsedGlyph.addPointsBetween();
+    if (insertBezierMidpoints) {
+        parsedGlyph.addPointsBetween();
+    }
     return parsedGlyph;
 }
 

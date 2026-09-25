@@ -2,6 +2,7 @@
 #include <vector>
 #include <cstdint>
 #include <stdexcept>
+#include "FontTypes.h"
 
 class LocaTable {
 public:

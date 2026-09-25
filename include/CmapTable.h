@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include "FontTypes.h"
 
 class CmapSubtable {
 public:

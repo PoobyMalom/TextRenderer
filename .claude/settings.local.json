@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cppcheck *)",
+      "Bash(dpkg -l)",
+      "Bash(pkg-config --exists gtest_main)",
+      "Bash(ldconfig -p)",
+      "Bash(apt list *)",
+      "Bash(sdl2-config --version)",
+      "Bash(make)",
+      "Bash(find / -iname \"libSDL2*\")",
+      "Bash(apt-cache policy *)"
+    ]
+  }
+}

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include "FontTypes.h"
 
 struct HeadTable {
     uint32_t version;

@@ -1,566 +1,350 @@
-# TextRenderer — Implementation Plan
+# TextRenderer — Phase 1 Implementation Plan (Font Engine)
+
+> This is the **mid-level** breakdown of Phase 1. The high-level vision and EU
+> sizing live in `FULL_PLAN.md` §2. This document expands each milestone into
+> concrete sub-steps and the **design decisions** you still need to make. No
+> code — decisions and structure only.
+
+---
 
 ## Goal
 
-Build a smooth, interactive SDL2 text viewer that rasterizes TrueType glyphs on the CPU and renders them into a zoomable, pannable 2D canvas. The viewer doubles as a debug/tuning tool with live parameter controls — font size, line spacing, fill mode, anti-aliasing, and more.
+Turn the current SDL text viewer into a real, reusable **font engine library**
+(`libtr_font`): given a `.ttf` file and a target pixel size, it produces correct
+**metrics**, **filled anti-aliased glyph bitmaps**, and a packed **texture
+atlas** — with **no SDL or OpenGL in its public headers**. It ships as a CMake
+package and a pybind11 Python module. An SDF atlas is *designed* now and built
+later (when Phase 3's zoom demands it).
+
+The interactive viewer (camera, HUD, live controls) is **no longer the
+deliverable** — it becomes an optional demo consumer under `examples/`. The
+real zoomable renderer is Phase 2.
 
 ---
 
-## Current State
+## Relationship to the old plan
 
-- TTF parsing works (head, maxp, loca, cmap, glyf tables)
-- Glyphs are drawn as Bezier **outlines only** using `SDL_RenderDrawLine`
-- Basic scroll with arrow keys and mouse wheel
-- Basic zoom with +/- (rebuilds nothing, just rescales on draw)
-- Entire canvas redrawn every frame (no caching, no culling)
-- Advance width is hardcoded to 600 font units for all glyphs
-- No filled rasterization, no anti-aliasing, no font metrics
+The previous version of this document planned an interactive SDL2 viewer with a
+glyph cache of `SDL_Texture`s, a camera, and an on-screen HUD. That work is
+**superseded**: caching/camera/HUD belong to the Phase 2 renderer, and the
+engine must not depend on SDL. What carries over is the *core new work* — the
+CPU rasterizer (Bézier flattening + scanline fill + AA) — now producing
+backend-neutral bitmaps instead of `SDL_Surface`s.
 
 ---
 
-## Architecture Overview
+## Current state
+
+- TTF parsing works: `head`, `maxp`, `loca`, `cmap` (formats 0/4/12), `glyf`
+  (simple + compound).
+- Glyphs render as Bézier **outlines only** (stroked), via SDL line drawing.
+- No `hhea`/`hmtx` → advance width hardcoded to 600 font units.
+- No fill, no anti-aliasing, no atlas, no metrics.
+- Engine still coupled to SDL through `Renderer.{h,cpp}`.
+- Build is a makefile; CI + clang-tidy in place; gtest scaffold present
+  (placeholder test only).
+- The large correctness/lint/leak cleanup (`TODO.md`) is essentially complete.
+
+---
+
+## Target architecture
 
 ```
 TTF File
    │
    ▼
-[Parsing Layer]          (existing — fix bugs, then freeze)
-   │  TTFFile, Glyph, CmapTable, LocaTable, HeadTable, MaxpTable
-   │  + NEW: HheaTable, HmtxTable
+[Parsing Layer]        (exists — freeze once hhea/hmtx land)
+   │  TTFFile, Glyph, Cmap/Loca/Head/Maxp + NEW Hhea/Hmtx
    │
    ▼
-[Layout Engine]          (new)
-   │  GlyphInstance positions in font-unit world space
-   │  Line breaking, advance widths, baseline, line height
-   │
+[Metrics]              (new)  advance widths, bearings, ascender/descender,
+   │                          unitsPerEm — one documented font-unit→pixel transform
    ▼
-[CPU Rasterizer]         (new — the core new work)
-   │  Bezier flattening → scanline fill → SDL_Surface pixels
-   │  Optional: super-sample anti-aliasing
-   │
+[CPU Rasterizer]       (new — the core work)
+   │  flatten quadratic Béziers → nonzero-winding scanline fill →
+   │  grayscale coverage bitmap → anti-alias (supersample first)
    ▼
-[Glyph Cache]            (new)
-   │  SDL_Texture per (glyphIndex, pixelSize)
-   │  Invalidated on zoom change past threshold
-   │
+[Atlas Builder]        (new)  pack glyph bitmaps into one grayscale texture +
+   │                          per-glyph UV rect + metrics
    ▼
-[Viewport / Camera]      (new — replaces current large-canvas approach)
-   │  World-space coordinates, smooth pan/zoom
-   │  Frustum culling — skip off-screen glyphs
-   │
-   ▼
-[SDL2 Renderer + HUD]    (refactor of existing main.cpp)
-   │  Blit cached glyph textures via SDL_RenderCopy
-   │  Draw HUD overlay with current parameter values
+[Public API]  (tr/font.h)  ── no SDL, no GL ──▶  consumers:
+                                                  • examples/sdl_demo
+                                                  • Phase 2 renderer
+                                                  • Python (pybind11)
 ```
 
----
-
-## Phase 0 — Prerequisites (from TODO.md)
-
-Complete these before any new feature work. They directly unblock later phases.
-
-- [ ] Fix **B3** — `TTFFile::parse` inside compound glyph loop (blocks compound glyphs)
-- [ ] Fix **B5** — unthrown `runtime_error` in `getGlyphIndex`
-- [ ] Fix **B6** — Format 4 cmap parsing offset (blocks many fonts)
-- [ ] Fix **M1/M2** — raw `new` leaks (corrupts memory on long runs)
-- [ ] Fix **BLD1** — hardcoded Homebrew paths (blocks building)
-- [ ] Fix **D4** — decouple SDL from `GlyphTable.h` (needed for clean rasterizer split)
-- [ ] Fix **D5** — getters return `const vector<T>&` (needed for performance)
-- [ ] Remove debug `cout` spam (**DC2, DC3**) — pollutes perf measurements
-
----
-
-## Phase 1 — Font Metrics (parse `hhea` and `hmtx` tables)
-
-Currently advance width is hardcoded. Real text layout requires per-glyph advance widths and global line height metrics.
-
-### 1.1 — Parse `hhea` table
-
-New file pair: `include/HheaTable.h`, `src/HheaTable.cpp`
-
-Fields needed:
-```
-int16_t  ascender           — distance above baseline (in font units)
-int16_t  descender          — distance below baseline (negative)
-int16_t  lineGap            — extra spacing between lines
-uint16_t advanceWidthMax    — widest glyph
-int16_t  numberOfHMetrics   — count of full hMetric entries in hmtx
-```
-
-### 1.2 — Parse `hmtx` table
-
-New file pair: `include/HmtxTable.h`, `src/HmtxTable.cpp`
-
-Structure (per glyph, count = `numberOfHMetrics` from hhea):
-```
-uint16_t advanceWidth
-int16_t  lsb          — left side bearing
-```
-Glyphs beyond `numberOfHMetrics` share the last `advanceWidth` but have individual `lsb` entries.
-
-Expose: `uint16_t getAdvanceWidth(uint16_t glyphIndex) const`
-
-### 1.3 — Wire into TTFFile
-
-Add `HheaTable hheaTable` and `HmtxTable hmtxTable` to `TTFFile`. Remove the hardcoded 600-unit constant everywhere.
-
-**Default values to derive from hhea:**
-```
-lineHeight   = (ascender - descender + lineGap) * lineSpacingMultiplier
-baseline     = ascender (distance from top of em square to baseline)
-```
-
----
-
-## Phase 2 — Text Layout Engine
-
-New file pair: `include/TextLayout.h`, `src/TextLayout.cpp`
-
-### Data Structures
-
-```cpp
-struct GlyphInstance {
-    uint16_t glyphIndex;
-    float    x;          // left edge, in font units from layout origin
-    float    y;          // baseline, in font units from layout origin
-};
-
-struct TextLayout {
-    std::vector<GlyphInstance> glyphs;
-    float totalWidth;    // font units
-    float totalHeight;   // font units
-};
-```
-
-### Layout Algorithm
-
-```
-pen_x = 0, pen_y = 0 (baseline of first line, y increases downward in layout space)
-maxLineWidth = desired wrap width in font units
-
-for each codepoint in text:
-    glyphIndex = cmap.getGlyphIndex(codepoint)
-    advanceWidth = hmtx.getAdvanceWidth(glyphIndex)
-
-    if codepoint == '\n':
-        pen_x = 0
-        pen_y += lineHeight
-        continue
-
-    if pen_x + advanceWidth > maxLineWidth and pen_x > 0:
-        pen_x = 0
-        pen_y += lineHeight
-
-    emit GlyphInstance { glyphIndex, pen_x, pen_y }
-    pen_x += advanceWidth
-```
-
-### Parameters
-
-| Parameter | Default | Range | Notes |
-|---|---|---|---|
-| `lineSpacingMultiplier` | 1.2 | 0.5 – 3.0 | Multiplied with `ascender - descender + lineGap` |
-| `letterSpacing` | 0 | -200 – 500 | Extra font units added to each advance width |
-| `wrapWidth` | auto | 1 – ∞ | In font units; auto = fit to viewport |
-
----
-
-## Phase 3 — CPU Glyph Rasterizer
-
-This is the core new work. Output: an `SDL_Surface*` containing a filled, anti-aliased glyph bitmap at a specified pixel size.
-
-New file pair: `include/Rasterizer.h`, `src/Rasterizer.cpp`
-
-### 3.1 — Bezier Flattening
-
-Convert a glyph's quadratic Bezier contours into polylines (lists of `(x, y)` line segments) at the target pixel size.
-
-```cpp
-// Returns a list of contours; each contour is a list of 2D points in pixel space
-std::vector<std::vector<SDL_FPoint>> flattenGlyph(
-    const Glyph& glyph,
-    float pixelsPerUnit,   // zoom * unitsPerEm / pixelSize
-    float originX,
-    float originY
-);
-```
-
-Quadratic Bezier subdivision:
-- Recursively subdivide until the curve is flat (deviation from chord < 0.5 px)
-- Or: use fixed step count adaptive to segment length
-- Flatness test: `distance(midpoint_of_chord, midpoint_of_curve) < threshold`
-
-### 3.2 — Scanline Fill (winding number rule)
-
-TrueType uses the **non-zero winding number** rule.
-
-```
-for y in [yMin_px .. yMax_px]:
-    intersections = []
-    for each edge (p0 → p1) in all flattened contours:
-        if edge crosses scanline y:
-            x = interpolate x at y
-            winding = +1 if going upward, -1 if going downward
-            intersections.push_back({x, winding})
-    
-    sort intersections by x
-    
-    winding = 0
-    for each intersection left to right:
-        winding += intersection.winding
-        if winding != 0:   // inside
-            fill pixels from this x to next intersection x
-```
-
-Output pixel format: 8-bit grayscale coverage (0 = transparent, 255 = fully inside).
-
-### 3.3 — Anti-aliasing
-
-**Option A (simple, implement first):** Supersampling
-- Rasterize at 2× or 4× the target size
-- Downsample with box filter: each output pixel = average of 4 (or 16) input pixels
-- Coverage values 0–255
-
-**Option B (better, implement second):** Analytical coverage
-- For each scanline, compute fractional x coverage at each edge crossing
-- Fill partial pixels proportionally rather than sampling
-
-Start with Option A — it's straightforward and already gives good results at 2×.
-
-### 3.4 — SDL_Surface Output
-
-```cpp
-SDL_Surface* rasterizeGlyph(
-    const Glyph& glyph,
-    int pixelSize,            // target height in pixels
-    uint16_t unitsPerEm,
-    SDL_Color fgColor,        // text color
-    SDL_Color bgColor         // background (for blending)
-);
-```
-
-Implementation:
-```cpp
-// 1. Compute scale: pixelsPerUnit = pixelSize / unitsPerEm
-// 2. Flatten bezier curves to pixel-space polylines
-// 3. Allocate coverage buffer (width x height, 8-bit float or uint8)
-// 4. Run scanline fill, write coverage values
-// 5. If supersampling: downsample coverage buffer
-// 6. Create SDL_Surface with ARGB8888 format
-// 7. Write pixels: alpha = coverage, RGB = fgColor
-// 8. Return surface (caller owns it)
-```
-
----
-
-## Phase 4 — Glyph Cache
-
-Rasterizing a glyph is expensive. Cache the result as an `SDL_Texture`.
-
-New file pair: `include/GlyphCache.h`, `src/GlyphCache.cpp`
-
-```cpp
-struct CacheKey {
-    uint16_t glyphIndex;
-    int      pixelSize;
-    SDL_Color fgColor;
-    bool operator==(const CacheKey&) const;
-};
-
-struct CacheEntry {
-    SDL_Texture* texture;
-    int width, height;    // in pixels
-    int bearingX;         // pixels from pen position to left edge of glyph
-    int bearingY;         // pixels from baseline to top of glyph
-};
-
-class GlyphCache {
-public:
-    GlyphCache(SDL_Renderer* renderer, const TTFFile& ttf);
-    ~GlyphCache();  // destroys all textures
-
-    const CacheEntry* get(uint16_t glyphIndex, int pixelSize, SDL_Color fg);
-    void invalidate();   // clear all — call when zoom crosses a threshold
-    size_t size() const;
-
-private:
-    std::unordered_map<CacheKey, CacheEntry, CacheKeyHash> cache;
-    SDL_Renderer* renderer;
-    const TTFFile& ttf;
-};
-```
-
-### Cache Invalidation Strategy
-
-Don't invalidate on every zoom tick — that would cause constant rasterization during scroll.
-Invalidate when zoom crosses a **size threshold**:
-
-```
-cachedPixelSize = round(currentZoom * unitsPerEm / someBaseUnit)
-if abs(cachedPixelSize - lastCachedPixelSize) > 4:
-    cache.invalidate()
-    lastCachedPixelSize = cachedPixelSize
-```
-
-This lets you zoom smoothly by scaling the cached texture (blurry but fast), then re-rasterizes once you settle at a new size.
-
----
-
-## Phase 5 — Viewport / Camera System
-
-Replace the current large canvas texture approach with a proper world-space camera.
-
-```cpp
-struct Camera {
-    float worldX;       // world-space x of viewport center (font units)
-    float worldY;       // world-space y of viewport center (font units)
-    float zoom;         // pixels per font unit (current)
-    float targetZoom;   // for smooth interpolation
-    float targetX;      // for smooth pan interpolation
-    float targetY;
-};
-```
-
-### Coordinate Transforms
-
-```cpp
-// World (font units) → Screen (pixels)
-SDL_Point worldToScreen(float wx, float wy, const Camera& cam, int screenW, int screenH) {
-    return {
-        (int)((wx - cam.worldX) * cam.zoom + screenW / 2.0f),
-        (int)((wy - cam.worldY) * cam.zoom + screenH / 2.0f)
-    };
-}
-
-// Screen → World (for mouse picking)
-SDL_FPoint screenToWorld(int sx, int sy, const Camera& cam, int screenW, int screenH) {
-    return {
-        (sx - screenW / 2.0f) / cam.zoom + cam.worldX,
-        (sy - screenH / 2.0f) / cam.zoom + cam.worldY
-    };
-}
-```
-
-### Smooth Pan/Zoom (lerp each frame)
-
-```cpp
-// In render loop, each frame:
-float lerpFactor = 1.0f - powf(0.1f, dt);  // dt = frame time in seconds
-cam.worldX += (cam.targetX - cam.worldX) * lerpFactor;
-cam.worldY += (cam.targetY - cam.worldY) * lerpFactor;
-cam.zoom   += (cam.targetZoom - cam.zoom) * lerpFactor;
-```
-
-Zoom toward cursor (not screen center):
-```cpp
-// On scroll wheel:
-SDL_FPoint mouseWorld = screenToWorld(mouseX, mouseY, cam, W, H);
-cam.targetZoom *= zoomFactor;
-// Adjust target position so world point under mouse stays fixed
-cam.targetX = mouseWorld.x - (mouseX - W/2.0f) / cam.targetZoom;
-cam.targetY = mouseWorld.y - (mouseY - H/2.0f) / cam.targetZoom;
-```
-
-### Frustum Culling
-
-Only render glyphs whose bounding boxes intersect the visible viewport:
-
-```cpp
-SDL_FRect viewportWorld = {
-    cam.worldX - screenW / (2 * cam.zoom),
-    cam.worldY - screenH / (2 * cam.zoom),
-    screenW / cam.zoom,
-    screenH / cam.zoom
-};
-
-for (const GlyphInstance& gi : layout.glyphs) {
-    SDL_FRect glyphBounds = getGlyphWorldBounds(gi, ttf);
-    if (!SDL_HasIntersectionF(&viewportWorld, &glyphBounds)) continue;
-    // render this glyph
-}
-```
-
----
-
-## Phase 6 — Rendering Loop
-
-Replace `main.cpp` render loop with:
-
-```
-each frame:
-  1. Handle input events (pan/zoom/toggle)
-  2. Lerp camera toward targets
-  3. Determine if cache needs invalidation (zoom threshold crossed)
-  4. SDL_SetRenderDrawColor white, SDL_RenderClear
-  5. For each GlyphInstance in layout.glyphs:
-       a. Skip if outside viewport (culling)
-       b. Compute screen position from world position + camera
-       c. Compute pixelSize = glyphHeight * camera.zoom / unitsPerEm
-       d. Get or create CacheEntry for (glyphIndex, pixelSize)
-       e. SDL_RenderCopy(renderer, entry.texture, NULL, &dstRect)
-  6. Draw HUD overlay
-  7. SDL_RenderPresent
-```
-
-### Dirty Flag
-
-```cpp
-bool layoutDirty = true;   // rebuild text layout (word wrap, etc.)
-bool cacheDirty  = false;  // true when zoom crosses threshold
-
-if (layoutDirty) { layout = buildTextLayout(...); layoutDirty = false; }
-if (cacheDirty)  { glyphCache.invalidate(); cacheDirty = false; }
-```
-
----
-
-## Phase 7 — HUD Overlay
-
-Draw a semi-transparent info panel in the top-left corner each frame using `SDL_SetRenderDrawBlendMode` and `SDL_SetRenderDrawColor`.
-
-### HUD Content
-
-```
-Font:          JetBrainsMono-Bold.ttf
-Glyphs:        1234 rendered / 456 visible / 789 cached
-Font size:     48 pt  (unitsPerEm: 2048)
-Zoom:          2.34x  (pixelSize: 112 px)
-Line spacing:  1.20x
-Letter spacing: +0 units
-Pan:           (12345, 6789) font units
-FPS:           60.0
-Mode:          Fill | AA ON | BBox OFF | Points OFF
-```
-
-Render text to HUD using SDL2_ttf (for the HUD itself) or a prebuilt bitmap font so the HUD doesn't depend on the renderer being built.
-
----
-
-## Controls Reference
-
-### Mouse
-
-| Action | Effect |
-|---|---|
-| Left-drag | Pan camera |
-| Scroll wheel | Zoom in/out toward cursor |
-| Ctrl+Scroll | Fine zoom (smaller steps) |
-| Middle-click drag | Pan camera (alternate) |
-
-### Keyboard — Navigation
-
-| Key | Action |
-|---|---|
-| `W` / `A` / `S` / `D` | Pan up/left/down/right |
-| Arrow keys | Pan (same as WASD) |
-| Shift + direction | Pan 5× faster |
-| `+` / `=` | Zoom in |
-| `-` | Zoom out |
-| `0` | Reset camera (fit all text to window) |
-| `1` | Jump to 1:1 pixel zoom |
-| `2` | Jump to 2× zoom |
-| `Home` | Jump to top-left of text |
-
-### Keyboard — Rendering Mode
-
-| Key | Action |
-|---|---|
-| `F` | Toggle fill / outline-only |
-| `A` | Toggle anti-aliasing on/off |
-| `P` | Toggle show control points (debug) |
-| `G` | Toggle show glyph bounding boxes |
-| `B` | Toggle background: white / black / gray |
-| `H` | Toggle HUD overlay |
-| `V` | Toggle baseline/ascender/descender guides |
-
-### Keyboard — Text Parameters (live, triggers layout + cache rebuild)
-
-| Key | Effect | Step | Range |
-|---|---|---|---|
-| `]` | Font size up | +2 pt | 4 – 256 pt |
-| `[` | Font size down | −2 pt | 4 – 256 pt |
-| Shift+`]` | Font size up large | +8 pt | 4 – 256 pt |
-| Shift+`[` | Font size down large | −8 pt | 4 – 256 pt |
-| `L` | Line spacing up | +0.05 | 0.5 – 4.0 |
-| Shift+`L` | Line spacing down | −0.05 | 0.5 – 4.0 |
-| `.` | Letter spacing up | +10 units | −500 – 1000 |
-| `,` | Letter spacing down | −10 units | −500 – 1000 |
-| `W` (held + scroll) | Adjust wrap width | ±50 units | 500 – ∞ |
-| `R` | Reset all text params to defaults | | |
-
-### Parameter Defaults
-
-| Parameter | Default | Notes |
-|---|---|---|
-| Font size | 24 pt | At 72 DPI: 24pt = 32px |
-| Line spacing | 1.2 | Multiplied with `(ascender - descender + lineGap)` |
-| Letter spacing | 0 | Added to each advance width in font units |
-| Fill mode | Fill (solid) | |
-| Anti-aliasing | On (2× supersample) | |
-| Background | White | |
-| Wrap width | Viewport width | Recalculated on window resize |
-| Supersampling | 2× | 1 = off, 2 = 4 samples, 4 = 16 samples |
-
----
-
-## Phase 8 — Render Modes in Detail
-
-### Mode 1: Fill (default)
-Solid filled glyphs using scanline fill. Anti-aliased edges when AA is on.
-
-### Mode 2: Outline
-Draw only the Bezier outlines as line segments (current behavior). Useful for debugging curve quality.
-
-### Mode 3: Wireframe  
-Outline + control points: on-curve points drawn as green dots, off-curve as red dots, control handles as gray lines. Shows the raw TrueType data.
-
-### Mode 4: Filled + Wireframe overlay
-Fill the glyph, then overlay the wireframe on top. Best debugging view.
-
-### Toggle: Bounding Boxes
-Draw a thin rectangle for each glyph's `[xMin, yMin, xMax, yMax]` bounding box in font units.
-
-### Toggle: Metrics Guides
-Draw horizontal lines for:
-- Baseline (blue)
-- Ascender (green)  
-- Descender (red)
-- x-height (yellow, optional — needs OS/2 table or heuristic)
-
----
-
-## Phase 9 — Window Resize Support
-
-Handle `SDL_WINDOWEVENT_RESIZED`:
-- Update `SCREEN_WIDTH` / `SCREEN_HEIGHT`
-- Recalculate `wrapWidth` if set to auto
-- Set `layoutDirty = true`
-- No glyph cache invalidation needed (pixel sizes don't change on resize)
+**Keystone rule:** nothing in `libtr_font`'s public headers may include SDL or
+OpenGL. The bitmap is plain bytes; the consumer uploads it.
 
 ---
 
 ## Milestones
 
-| Milestone | Done when |
-|---|---|
-| **M0: Clean build** | All Phase 0 bugs fixed, builds on Linux with `sdl2-config` |
-| **M1: Metrics** | `hhea`/`hmtx` parsed; advance widths drive real character spacing |
-| **M2: Layout** | Text wraps at viewport edge; line spacing matches font metrics |
-| **M3: Fill** | At least one glyph rendered as a solid filled shape (no AA yet) |
-| **M4: Full fill** | All simple glyphs rasterized; compound glyphs working |
-| **M5: AA** | 2× supersampled anti-aliasing active; text is smooth |
-| **M6: Cache** | Glyph cache working; pan is smooth at 60fps; no re-rasterize on pan |
-| **M7: Camera** | Smooth lerp zoom; zoom toward cursor; culling active |
-| **M8: HUD** | All parameters shown on screen; all keyboard controls wired up |
-| **M9: Polish** | Resize support; all render modes; metrics guides; wireframe mode |
+Each milestone lists *what*, *why it's ordered here*, the *design decisions* you
+own, and a *Definition of Done*.
+
+### P1.0 — Land the cleanup, cut a baseline
+
+- **What:** close remaining `TODO.md` items, merge `memory-leak-fixs`, tag
+  `v0.1.0` (the outline-renderer baseline).
+- **Why now:** you want a known-good fallback before architectural surgery.
+- **Decisions:** none significant.
+- **DoD:** `main` builds clean, clang-tidy green, tag exists.
+
+### P1.1 — Horizontal metrics (`hhea` + `hmtx`)
+
+- **What:** parse `hhea` (ascender, descender, lineGap, numberOfHMetrics) and
+  `hmtx` (per-glyph advanceWidth + leftSideBearing, including the trailing
+  lsb-only run). Replace the hardcoded 600.
+- **Why now:** small, unblocks correct spacing everywhere downstream.
+- **Decisions to make:**
+  - Where do per-glyph metrics live — on `Glyph`, or in a separate `Metrics`
+    object keyed by glyph index? (Recommend separate; keeps `Glyph` about
+    outlines.)
+  - Default line height source now (`hhea`) vs later (`OS/2`, see `FUTURE.md`).
+- **DoD:** a proportional font advances correctly; golden test on a known
+  advance value.
+
+### P1.2 — `unitsPerEm` + the canonical coordinate transform
+
+#### Background: what is `unitsPerEm`?
+
+A font defines all of its geometry — glyph outlines, advance widths, bearings,
+ascender, descender — in an abstract integer grid called **font units**. The
+size of that grid is `unitsPerEm`: common values are 1000 (PostScript-origin
+fonts) and 2048 (TrueType). It has nothing to do with pixels; it's just the
+resolution the type designer chose to draw at.
+
+The **em** is the reference unit — historically the height of the metal block a
+letter was cast on, and today the square that nominally contains a capital
+letter. If `unitsPerEm` is 2048, a capital H might be ~1400 units tall, and an
+advance width might be ~1200 units. None of those numbers mean anything until
+you divide by `unitsPerEm` and multiply by the desired pixel size:
+
+```
+pixels = fontUnits * pixelsPerEm / unitsPerEm
+```
+
+This is why two fonts with different `unitsPerEm` values can render at the same
+visual size given the same `pixelsPerEm` — the denominator normalises them.
+
+- **What:** read `unitsPerEm` from `head`; write `docs/coordinates.md`; replace
+  ad-hoc scaling with one documented `fontUnits → pixels` transform.
+- **Why now:** every later placement bug traces back to this; fix the mental
+  model before the rasterizer depends on it.
+
+#### Sub-steps
+
+1. **Confirm `unitsPerEm` is already parsed.** `head` is parsed via
+   `HeadTable::parseHeadDirectory` — check that `unitsPerEm` is a field and
+   accessible. It almost certainly is; this is a quick verify.
+
+2. **Define the one canonical transform.** The formula is:
+
+   ```
+   pixels = fontUnits * pixelsPerEm / unitsPerEm
+   ```
+
+   where `pixelsPerEm` is the caller's requested render size in pixels (e.g. 32
+   for a 32px font). Write this as a free function or small struct in
+   `tr/Metrics.h` (or a new `tr/Transform.h`):
+
+   ```cpp
+   struct FontTransform {
+       float pixelsPerEm;
+       uint16_t unitsPerEm;
+       float toPixels(int16_t fontUnits) const {
+           return fontUnits * pixelsPerEm / unitsPerEm;
+       }
+   };
+   ```
+
+   Every placement value — advance widths, bearings, ascender, descender,
+   glyph coordinates — must go through this and **nothing else**.
+
+3. **Rip out the ad-hoc `scalingFactor`.** The current `double scalingFactor =
+   0.1` in `main.cpp` is an unmotivated constant that approximates the real
+   transform for one font at one size. Replace it: `pixelsPerEm` is the user
+   control (the +/- keys now adjust `pixelsPerEm`, not a raw scale), and the
+   transform does the rest.
+
+4. **Fix the Y-axis.** TTF glyph coordinates are Y-up (positive Y goes toward
+   the ascender). SDL and GPU texture rows are Y-down. The transform must flip:
+
+   ```
+   screenY = baselineY - toPixels(fontY)
+   ```
+
+   Document this flip in `docs/coordinates.md` with a diagram. This is the most
+   common source of upside-down glyphs.
+
+5. **Write `docs/coordinates.md`.** Cover:
+   - The font-unit grid and what `unitsPerEm` means (the cap-height reference)
+   - The baseline, ascender, descender in font units (from `hhea`)
+   - The Y-up → Y-down flip at the render boundary
+   - The one `fontUnits → pixels` formula and where it lives in code
+   - A worked example: advance a cursor for the string "Ag" at 32px on a
+     2048-UPM font
+
+6. **Golden test.** Render the same string ("Hello") from two fonts with
+   different `unitsPerEm` values at the same `pixelsPerEm`. Assert that the
+   pixel-space advance widths are within 1px of each other for comparable
+   glyphs. This verifies the transform is actually being applied, not bypassed.
+
+#### Decisions to make
+
+- **Y-axis convention for engine output bitmaps:** Y-down (atlas rows top-to-
+  bottom) — conventional for GPU upload. Pick this, document it, don't revisit.
+- **Pixel-size input unit:** pixels-per-em as the engine's native unit. Let
+  callers convert from point size: `ppem = pointSize * dpi / 72`. Keep the
+  conversion out of the engine.
+- **Where the transform lives:** recommend a single `FontTransform` struct in
+  the metrics layer, not scattered casts. All coordinate math imports it.
+
+#### DoD
+
+- `docs/coordinates.md` exists and is linked from a comment at the top of
+  `Metrics.h` (or wherever `FontTransform` lives).
+- `scalingFactor` is gone from `main.cpp`; +/- keys adjust `pixelsPerEm`.
+- Two fonts with different `unitsPerEm` render at the same visual size at the
+  same `pixelsPerEm` — verified by eye and by the golden test.
+
+### P1.3 — Decouple the engine core from SDL
+
+- **What:** move `Renderer.{h,cpp}` and the SDL `main` into
+  `examples/sdl_outline_demo/`. Introduce a thin public facade header
+  (`tr/font.h`) that does not expose raw table classes.
+- **Why now:** do this *before* writing the rasterizer so new code is born
+  backend-neutral.
+- **Decisions to make:**
+  - Facade shape: free functions vs a `Font` class with methods? (Recommend a
+    small `Font` class — maps cleanly to the Python binding later.)
+  - How much of the parser is public vs internal (pimpl/`detail` namespace)?
+  - What's the canonical bitmap type the engine returns (e.g. a `Bitmap` struct:
+    width, height, stride, `vector<uint8_t>` coverage)?
+- **DoD:** a test translation unit including only `tr/font.h` compiles with **no
+  SDL on the include path**.
+
+### P1.4 — Contour flattening + scanline fill rasterizer
+
+- **What:** flatten quadratic Béziers to line segments at a pixel tolerance;
+  implement a **nonzero-winding** scanline fill into a grayscale coverage
+  buffer.
+- **Why now:** this is the core capability the whole phase exists for.
+- **Decisions to make:**
+  - Flattening strategy: adaptive subdivision (flatness threshold) vs fixed step
+    count. (Recommend adaptive with a ~0.3–0.5px deviation threshold.)
+  - Winding rule confirmation: TrueType is **nonzero**, not even-odd — overlaps
+    (counters, bars) depend on it. Lock this in a test.
+  - Coverage representation: 8-bit now, or accumulate in float then quantize?
+  - How to treat empty glyphs (space) — zero-size bitmap, not an error.
+- **DoD:** 'O', 'B', 'g', 'A', '@' fill with correct holes; visual diff against a
+  FreeType render of the same glyph/size is within tolerance.
+
+### P1.5 — Anti-aliasing
+
+- **What:** start with **supersampling** (rasterize 3×–4×, box-downsample to
+  coverage). Document the path to analytic/signed-area AA as a later upgrade.
+- **Why now:** AA only makes sense once fill is correct.
+- **Decisions to make:**
+  - Supersample factor (memory vs quality) and whether it's configurable.
+  - Gamma: blend coverage in linear vs sRGB? (Note it; correct gamma matters for
+    perceived weight — can defer but document.)
+- **DoD:** edges smooth; factor configurable; atlas-build time acceptable.
+
+### P1.6 — Glyph atlas + packer
+
+- **What:** rasterize a requested charset at a target px size; pack into one
+  grayscale texture with a skyline/shelf packer; emit per-glyph UV rect +
+  metrics; 1px padding to avoid bleed.
+- **Why now:** the atlas is what Phase 2/3 actually consume.
+- **Decisions to make:**
+  - Atlas charset policy: fixed ASCII/Latin set, or on-demand glyph insertion
+    with atlas growth? (Recommend fixed set first; design for growth.)
+  - Atlas data exchange format for Python/file (raw bytes + struct vs PNG +
+    JSON sidecar).
+  - One atlas per (font, size), or multiple sizes in one atlas?
+  - Packer choice (skyline is the sweet spot of simple + tight enough).
+- **DoD:** one atlas image + metrics dump; the SDL demo blits a string from the
+  atlas instead of stroking outlines.
+
+### P1.7 — CMake + install/export, real tests
+
+- **What:** migrate the build to CMake; `add_library(tr_font)`, install/export
+  so `find_package(tr_font)` works; relocate the engine under `/font` per the
+  monorepo layout (`FULL_PLAN.md` D-A3); extend gtest beyond the placeholder.
+- **Why now:** packaging + Python both need CMake; do it once the surface is
+  stable.
+- **Decisions to make:**
+  - Do the `/font` directory move now or defer? (Recommend now, with CMake, to
+    avoid a second churn.)
+  - Keep the makefile during transition, or hard cut? (Recommend keep until
+    CMake reaches parity, then delete.)
+  - Library type: static, shared, or both?
+- **DoD:** a scratch CMake project links `tr_font` via `find_package`; tests run
+  via CTest.
+
+### P1.8 — pybind11 bindings + wheel
+
+- **What:** a `tr_font` Python module: load a font, shape a string into
+  positioned glyphs, get an atlas (image buffer + metrics). Build the wheel via
+  `scikit-build-core`.
+- **Why now:** Phase 3 consumes this; lock the API early.
+- **Decisions to make:**
+  - Buffer exchange: numpy array vs raw `bytes` for the atlas image.
+  - API granularity (per `FULL_PLAN.md` D-2B thinking): coarse calls only — no
+    per-glyph FFI in hot paths.
+  - Packaging name and module layout.
+- **DoD:** `pip install .`, `import tr_font`, dump an atlas PNG from Python.
+
+### P1.9 — SDF atlas design (build deferred)
+
+- **What:** write `docs/sdf.md` — approach (distance transform from coverage, or
+  MSDF for sharp corners), atlas format deltas, and the shader-side sampling
+  Phase 2 will need. No code yet.
+- **Why now:** Phase 3's zoomable world needs crisp text; capture the design
+  while the rasterizer is fresh in your head.
+- **Decisions to make:**
+  - Single-channel SDF (simple, rounds corners) vs MSDF (sharp, more complex).
+  - Generation: in-house distance transform vs lean on `msdfgen` as a tool.
+- **DoD:** `docs/sdf.md` exists; tagged as the v0.2 feature.
 
 ---
 
-## Open Questions / Decisions to Make Later
+## Cross-cutting decisions (recap from FULL_PLAN)
 
-- **Kerning**: The `kern` table provides pair-specific spacing adjustments. Add it after `hmtx` is working; it's optional for a first pass.
-- **Subpixel rendering (ClearType-style)**: Requires RGB channel offsets per pixel. Complex. Probably out of scope.
-- **OS/2 table**: Contains `sTypoAscender`, `sTypoDescender`, `usWinAscent` — better line height values than `hhea` for some fonts. Parse it in a later pass.
-- **glyph compositing**: Currently glyphs draw over each other if they overlap. For correct text, draw each glyph into its own ARGB surface then alpha-blend into the scene.
-- **Dynamic font loading**: Add a file picker or command-line argument for the font path rather than hardcoding it in `main.cpp`.
+- 🚩 Engine core is backend-agnostic (no SDL/GL in public headers) — P1.3.
+- 🚩 Build migrates to CMake; engine moves under `/font` — P1.7.
+- 🚩 SDF is designed in P1.9, built when Phase 3 needs zoom.
+- ⚠️ Scope boundaries: **no CFF/PostScript (OTTO) outlines**, **no hinting
+  bytecode execution**. Detect CFF fonts and reject with a clear error.
+
+---
+
+## Milestone summary
+
+| Milestone | Done when |
+|---|---|
+| **P1.0** | Cleanup merged; `v0.1.0` tagged |
+| **P1.1** | `hhea`/`hmtx` drive real advance widths |
+| **P1.2** | One documented font-unit→pixel transform; `unitsPerEm` honored |
+| **P1.3** | Engine compiles with no SDL on the include path |
+| **P1.4** | Glyphs fill correctly with proper holes (nonzero winding) |
+| **P1.5** | Anti-aliased edges via supersampling |
+| **P1.6** | Packed atlas + metrics; demo blits from atlas |
+| **P1.7** | CMake package; `find_package` works; CTest runs |
+| **P1.8** | `import tr_font` works from a wheel |
+| **P1.9** | SDF design doc written |
+
+---
+
+## Open questions to resolve before the milestone that needs them
+
+- **Atlas charset** — ASCII/Latin only, or box-drawing + symbols for the game's
+  "ASCII art" look? (Needed by P1.6; also in `FULL_PLAN.md` §9.)
+- **Kerning** — legacy `kern` first, GPOS later, or skip for Phase 1? (See
+  `FUTURE.md`; not required for the engine MVP.)
+- **OS/2 line metrics** — adopt now for better line height, or stay on `hhea`?
+- **Dynamic font path** — keep hardcoded in the demo, or add a CLI arg /
+  Python-only loading? (Engine takes a path/buffer regardless.)
+- **Gamma-correct blending** — commit to linear-space coverage now or later?

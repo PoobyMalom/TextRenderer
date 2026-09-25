@@ -8,6 +8,7 @@
 #include "LocaTable.h"
 #include "GlyphTable.h"
 #include "Metrics.h"
+#include "FontTypes.h"
 #include <vector>
 #include <string>
 
@@ -30,7 +31,7 @@ public:
     const Metrics& getMetricsTable() const;
 
     static TTFFile parse(const std::vector<char>& data);
-    Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode);
+    Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode, bool insertBezierMidpoints = true);
     std::vector<Glyph> parseGlyphs(const std::vector<char>& data, const std::string& letters);
 
 private:

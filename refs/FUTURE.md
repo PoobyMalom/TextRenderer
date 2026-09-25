@@ -1,12 +1,30 @@
-# TextRenderer — Future Work
+# TextRenderer — Phase 1 Future Work (Font Engine)
 
-This document covers TTF/OpenType tables not yet implemented and not covered by PLANS.md.
-Each entry describes the table's purpose, its binary structure, parsing approach, and what
-it unlocks for the renderer.
+This document covers TTF/OpenType tables **not yet implemented** and not covered
+by `PLANS.md`. Each entry describes the table's purpose, its binary layout (as
+reference tables, not code), and what it unlocks for the engine.
+
+> Framing note: "the renderer" below now means **any consumer of the engine** —
+> the SDL demo, the Phase 2 OpenGL renderer, or the Python layer. The engine's
+> job for each of these tables is to expose the parsed data via its public API;
+> what unlocks a feature is the *consumer* acting on that data. Binary-layout
+> blocks are kept as reference; implementation code has been removed per the
+> docs convention (decisions and structure, not code).
 
 **Already implemented:** `head`, `maxp`, `loca`, `cmap`, `glyf`
-**Planned in PLANS.md:** `hhea`, `hmtx`
-**Everything below:** future work, roughly ordered by value to the renderer.
+**Planned in `PLANS.md` (Phase 1 MVP):** `hhea`, `hmtx`
+**Everything below:** future work, roughly ordered by value to the engine.
+
+### Cross-cutting decisions for future tables
+- **OpenType Layout shared infrastructure** (Coverage tables, ClassDef tables,
+  ScriptList/FeatureList/LookupList) is needed by `GDEF`/`GSUB`/`GPOS`/`BASE`/
+  `JSTF`. Decide to build that shared mini-parser **once** before tackling any
+  of those tables, rather than per-table.
+- **Where parsed data lives:** most of these belong on the `Font`/engine object,
+  not on `Glyph`. Decide the accessor shape when you add the first one.
+- **Shaping vs metrics:** `GSUB`/`GPOS` push the engine from "metrics provider"
+  toward a "shaping engine." Decide if/when the engine owns shaping, or whether a
+  separate shaping layer sits above it.
 
 ---
 
@@ -50,32 +68,14 @@ when it's present.
 | 90 | uint16 | usDefaultChar | codepoint used when character is missing |
 | 92 | uint16 | usBreakChar | word-break character (usually 0x0020 space) |
 
-**Parsing approach:**
-```cpp
-OS2Table OS2Table::parse(const std::vector<char>& data, uint32_t offset) {
-    int pos = offset;
-    uint16_t version          = read2Bytes(data, pos);
-    int16_t  xAvgCharWidth    = read2Bytes(data, pos);
-    uint16_t usWeightClass    = read2Bytes(data, pos);
-    uint16_t usWidthClass     = read2Bytes(data, pos);
-    uint16_t fsType           = read2Bytes(data, pos);
-    pos += 18; // skip subscript/superscript fields + familyClass + panose
-    pos += 16; // skip unicodeRange1-4
-    pos += 4;  // skip achVendID
-    uint16_t fsSelection      = read2Bytes(data, pos);
-    uint16_t usFirstCharIndex = read2Bytes(data, pos);
-    uint16_t usLastCharIndex  = read2Bytes(data, pos);
-    int16_t  sTypoAscender    = read2Bytes(data, pos);
-    int16_t  sTypoDescender   = read2Bytes(data, pos);
-    int16_t  sTypoLineGap     = read2Bytes(data, pos);
-    uint16_t usWinAscent      = read2Bytes(data, pos);
-    uint16_t usWinDescent     = read2Bytes(data, pos);
-    // version 2+: skip codePageRange (8 bytes) then:
-    int16_t  sxHeight    = (version >= 2) ? read2Bytes(data, pos) : 0;
-    int16_t  sCapHeight  = (version >= 2) ? read2Bytes(data, pos) : 0;
-    // ...
-}
-```
+**Parsing approach:** read the fixed-layout fields in order, skipping the blocks
+you don't need — subscript/superscript metrics, family class + PANOSE (18 bytes),
+the four `unicodeRange` words (16 bytes), and `achVendID` (4 bytes) — then read
+`fsSelection`, first/last char index, and the typographic metrics. The version 2+
+fields (`sxHeight`, `sCapHeight`, …) come after an 8-byte `codePageRange` block
+and should only be read when `version >= 2`. **Decision:** guard every
+version-gated field on the parsed `version`, and clamp reads to the table length
+so older 78-byte tables don't over-read.
 
 **What it unlocks:**
 - Correct typographic line height (`sTypoAscender - sTypoDescender + sTypoLineGap`)
@@ -343,16 +343,14 @@ Format 2: ranges of glyph IDs
 ```
 A coverage table answers: "is glyph G covered by this lookup, and if so, what is its coverage index?"
 
-**Applying GSUB in the layout engine:**
-Run the glyph sequence through each active lookup in feature order. For ligatures:
-```
-for i in 0..glyphs.size():
-    for each ligature set where glyphs[i] matches first component:
-        if glyphs[i..i+componentCount-1] matches all components:
-            replace glyphs[i..i+componentCount-1] with ligGlyph
-            i stays at i (re-check from same position)
-            break
-```
+**Applying GSUB in the layout engine:** run the glyph sequence through each
+active lookup in feature order. For ligatures, scan the sequence; wherever a
+glyph matches the first component of a ligature and the following glyphs match
+the remaining components, replace that run with the single ligature glyph and
+re-check from the same position (a new ligature may now start there). **Decision:**
+this is the point where the engine grows a "shaping" step that mutates the glyph
+run before metrics/positioning — decide whether that lives in the engine or a
+layer above it (see the cross-cutting note at the top).
 
 Active features are selected by the script/language system. Common features:
 - `liga` — standard ligatures (fi, fl, ff, ffi, ffl) — on by default

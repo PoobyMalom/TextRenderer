@@ -2,6 +2,7 @@
 
 #include <SDL2/SDL.h>
 #include <iostream>
+#include "FontTypes.h"
 
 SDL_Window* initializeWindow(const char* title, int width, int height);
 SDL_Renderer* initializeRenderer(SDL_Window* window);

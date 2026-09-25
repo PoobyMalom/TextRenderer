@@ -10,6 +10,7 @@ RELEASE_FLAGS := -O2 -DNDEBUG
 # Targets
 TARGET      := main
 TEST_TARGET := test_runner
+DEMO_TARGET := demo
 
 # Build dir
 OBJDIR := build
@@ -40,7 +41,13 @@ TEST_MAIN_DEP := $(TEST_MAIN_OBJ:.o=.d)
 TEST_OBJS     := $(OBJS)
 TEST_DEPS     := $(DEPS)
 
-.PHONY: all clean release run
+DEMO_MAIN_OBJ   := $(OBJDIR)/demo.o
+DEMO_MAIN_DEP   := $(DEMO_MAIN_OBJ:.o=.d)
+DEMO_EXTRA_SRCS := src/DemoPhases.cpp
+DEMO_EXTRA_OBJS := $(DEMO_EXTRA_SRCS:%.cpp=$(OBJDIR)/%.o)
+DEMO_EXTRA_DEPS := $(DEMO_EXTRA_OBJS:.o=.d)
+
+.PHONY: all clean release run run-demo
 all: $(TARGET)
 
 $(TARGET): $(MAIN_OBJ) $(OBJS)
@@ -48,6 +55,9 @@ $(TARGET): $(MAIN_OBJ) $(OBJS)
 
 $(TEST_TARGET): $(TEST_MAIN_OBJ) $(TEST_OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(shell pkg-config --cflags --libs gtest_main)
+
+$(DEMO_TARGET): $(DEMO_MAIN_OBJ) $(OBJS) $(DEMO_EXTRA_OBJS)
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
@@ -59,8 +69,11 @@ release: $(TARGET)
 run: $(TARGET)
 	./$(TARGET)
 
+run-demo: $(DEMO_TARGET)
+	./$(DEMO_TARGET)
+
 clean:
-	rm -rf $(OBJDIR) $(TARGET) $(TEST_TARGET)
+	rm -rf $(OBJDIR) $(TARGET) $(TEST_TARGET) $(DEMO_TARGET)
 
 # Include auto-generated dependency files (ok if missing)
--include $(DEPS) $(MAIN_DEP) $(TEST_DEPS) $(TEST_MAIN_DEP)
+-include $(DEPS) $(MAIN_DEP) $(TEST_DEPS) $(TEST_MAIN_DEP) $(DEMO_MAIN_DEP) $(DEMO_EXTRA_DEPS)

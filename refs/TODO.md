@@ -102,272 +102,270 @@ Subtasks are listed under each item — check them off as you go.
 
 ## DESIGN / ARCHITECTURE
 
-- [ ] **D1** Mixed include guards — five headers use `#ifndef`/`#define`/`#endif`, the rest use `#pragma once`.
-  - [ ] Replace the `#ifndef`/`#define`/`#endif` guard in `TTFFile.h` with `#pragma once`
-  - [ ] Replace in `Helpers.h`
-  - [ ] Replace in `SDLInitializer.h`
-  - [ ] Replace in `MovableLine.h` (will be deleted in D8, but clean it now)
-  - [ ] Replace in `MovablePoint.h` (same)
+- [x] **D1** Mixed include guards — five headers use `#ifndef`/`#define`/`#endif`, the rest use `#pragma once`.
+  - [x] Replace the `#ifndef`/`#define`/`#endif` guard in `TTFFile.h` with `#pragma once`
+  - [x] Replace in `Helpers.h`
+  - [x] Replace in `SDLInitializer.h`
+  - [x] Replace in `MovableLine.h` (will be deleted in D8, but clean it now)
+  - [x] Replace in `MovablePoint.h` (same)
 
-- [ ] **D2** `Helpers.h:10` — `using namespace std;` at global scope in a header, polluting every includer's namespace.
-  - [ ] Remove the `using namespace std;` line from `Helpers.h`
-  - [ ] Add `std::` prefix to every `vector`, `string`, and `tuple` in the function declarations in `Helpers.h`
-  - [ ] Compile and fix any errors in files that were relying on the implicit `std::` from the header (most `.cpp` files have their own `using namespace std` so this should be minimal)
+- [x] **D2** `Helpers.h:10` — `using namespace std;` at global scope in a header, polluting every includer's namespace.
+  - [x] Remove the `using namespace std;` line from `Helpers.h`
+  - [x] Add `std::` prefix to every `vector`, `string`, and `tuple` in the function declarations in `Helpers.h`
+  - [x] Compile and fix any errors in files that were relying on the implicit `std::` from the header (most `.cpp` files have their own `using namespace std` so this should be minimal)
 
-- [ ] **D3** `TTFFile` constructor takes 11 parameters, 5 of which (`cmapOffset`, `glyfOffset`, `headOffset`, `locaOffset`, `maxpOffset`) are redundant — already accessible from the stored table map.
-  - [ ] Remove `cmapOffset`, `glyfOffset`, `headOffset`, `locaOffset`, `maxpOffset` from the `TTFFile` constructor parameter list in `TTFFile.h`
-  - [ ] Remove the 5 corresponding private member variables from `TTFFile.h`
-  - [ ] Remove the 5 getter method declarations (`getCmapOffset`, `getGlyfOffset`, `getHeadOffset`, `getLocaOffset`, `getMaxpOffset`) from `TTFFile.h`
-  - [ ] Remove the 5 getter implementations from `TTFFile.cpp`
-  - [ ] Remove the 5 arguments from the `TTFFile(...)` constructor call in `TTFFile::parse`
-  - [ ] Remove the 5 member initializations from the `TTFFile` constructor initializer list in `TTFFile.cpp`
-  - [ ] Update `TTFFile::parseGlyph` to derive `glyfOffset` on demand: `uint32_t glyfOffset = tableMap.at("glyf").getOffset();` (or equivalent access through the stored header/tables)
-  - [ ] Grep for any remaining call sites of the removed getters: `grep -r "getGlyfOffset\|getCmapOffset\|getHeadOffset\|getLocaOffset\|getMaxpOffset" .`
+- [x] **D3** `TTFFile` constructor takes 11 parameters, 5 of which (`cmapOffset`, `glyfOffset`, `headOffset`, `locaOffset`, `maxpOffset`) are redundant — already accessible from the stored table map.
+  - [x] Remove `cmapOffset`, `glyfOffset`, `headOffset`, `locaOffset`, `maxpOffset` from the `TTFFile` constructor parameter list in `TTFFile.h`
+  - [x] Remove the 5 corresponding private member variables from `TTFFile.h`
+  - [x] Remove the 5 getter method declarations (`getCmapOffset`, `getGlyfOffset`, `getHeadOffset`, `getLocaOffset`, `getMaxpOffset`) from `TTFFile.h`
+  - [x] Remove the 5 getter implementations from `TTFFile.cpp`
+  - [x] Remove the 5 arguments from the `TTFFile(...)` constructor call in `TTFFile::parse`
+  - [x] Remove the 5 member initializations from the `TTFFile` constructor initializer list in `TTFFile.cpp`
+  - [x] Update `TTFFile::parseGlyph` to derive `glyfOffset` on demand: `uint32_t glyfOffset = tableMap.at("glyf").getOffset();` (or equivalent access through the stored header/tables)
+  - [x] Grep for any remaining call sites of the removed getters: `grep -r "getGlyfOffset\|getCmapOffset\|getHeadOffset\|getLocaOffset\|getMaxpOffset" .`
 
-- [ ] **D4** `GlyphTable.h` includes `SDL2/SDL.h`, coupling the data-parsing layer to the rendering layer.
-  - [ ] Create `include/Renderer.h` with a declaration: `void drawSimpleGlyph(SDL_Renderer* renderer, const Glyph& glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness)`
-  - [ ] Add `#include "SDL2/SDL.h"` and `#include "GlyphTable.h"` to `Renderer.h`
-  - [ ] Create `src/Renderer.cpp` and move the `drawSimpleGlyph` implementation there from `GlyphTable.cpp`
-  - [ ] Remove the `drawSimpleGlyph` static method declaration from the `Glyph` class in `GlyphTable.h`
-  - [ ] Remove `#include "SDL2/SDL.h"` from `GlyphTable.h`
-  - [ ] Remove `#include "MovableLine.h"` from `GlyphTable.h` (it was only there for the drawing code)
-  - [ ] Remove the `drawSimpleGlyph` implementation from `GlyphTable.cpp`
-  - [ ] Update `main.cpp` to `#include "Renderer.h"` and call `drawSimpleGlyph(renderer, glyphs[i], ...)` as a free function
-  - [ ] Add `src/Renderer.cpp` to `SRCS` in the makefile
-  - [ ] Compile and confirm `GlyphTable.h` no longer requires SDL2 on the include path
+- [x] **D4** `GlyphTable.h` includes `SDL2/SDL.h`, coupling the data-parsing layer to the rendering layer.
+  - [x] Create `include/Renderer.h` with a declaration: `void drawSimpleGlyph(SDL_Renderer* renderer, const Glyph& glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness)`
+  - [x] Add `#include "SDL2/SDL.h"` and `#include "GlyphTable.h"` to `Renderer.h`
+  - [x] Create `src/Renderer.cpp` and move the `drawSimpleGlyph` implementation there from `GlyphTable.cpp`
+  - [x] Remove the `drawSimpleGlyph` static method declaration from the `Glyph` class in `GlyphTable.h`
+  - [x] Remove `#include "SDL2/SDL.h"` from `GlyphTable.h`
+  - [x] Remove `#include "MovableLine.h"` from `GlyphTable.h` (it was only there for the drawing code)
+  - [x] Remove the `drawSimpleGlyph` implementation from `GlyphTable.cpp`
+  - [x] Update `main.cpp` to `#include "Renderer.h"` and call `drawSimpleGlyph(renderer, glyphs[i], ...)` as a free function
+  - [x] Add `src/Renderer.cpp` to `SRCS` in the makefile
+  - [x] Compile and confirm `GlyphTable.h` no longer requires SDL2 on the include path
 
-- [ ] **D5** Getters return vectors by value, causing copies on every call. `drawSimpleGlyph` also takes `Glyph` by value.
-  - [ ] Change `Glyph::getEndPtsOfContours()` return type from `vector<uint16_t>` to `const std::vector<uint16_t>&` in `GlyphTable.h` and `GlyphTable.cpp`
-  - [ ] Change `Glyph::getInstructions()` to `const std::vector<uint8_t>&`
-  - [ ] Change `Glyph::getFlags()` to `const std::vector<uint8_t>&`
-  - [ ] Change `Glyph::getXCoordinates()` to `const std::vector<int16_t>&`
-  - [ ] Change `Glyph::getYCoordinates()` to `const std::vector<int16_t>&`
-  - [ ] Change `CmapTable::getSubtables()` return type to `const std::vector<CmapSubtable>&`
-  - [ ] Change `drawSimpleGlyph` (in Renderer.h/cpp after D4) parameter from `Glyph glyph` to `const Glyph& glyph`
-  - [ ] Compile and check for any callers that were relying on the copy (e.g. storing a returned vector in a non-const local and then modifying it — unlikely but check)
+- [x] **D5** Getters return vectors by value, causing copies on every call. `drawSimpleGlyph` also takes `Glyph` by value.
+  - [x] Change `Glyph::getEndPtsOfContours()` return type from `vector<uint16_t>` to `const std::vector<uint16_t>&` in `GlyphTable.h` and `GlyphTable.cpp`
+  - [x] Change `Glyph::getInstructions()` to `const std::vector<uint8_t>&`
+  - [x] Change `Glyph::getFlags()` to `const std::vector<uint8_t>&`
+  - [x] Change `Glyph::getXCoordinates()` to `const std::vector<int16_t>&`
+  - [x] Change `Glyph::getYCoordinates()` to `const std::vector<int16_t>&`
+  - [x] Change `CmapTable::getSubtables()` return type to `const std::vector<CmapSubtable>&`
+  - [x] Change `drawSimpleGlyph` (in Renderer.h/cpp after D4) parameter from `Glyph glyph` to `const Glyph& glyph`
+  - [x] Compile and check for any callers that were relying on the copy (e.g. storing a returned vector in a non-const local and then modifying it — unlikely but check)
 
-- [ ] **D6** `parseCompoundGlyph` uses nine parallel vectors to track per-component data, which is fragile and hard to read.
-  - [ ] Define a `struct ComponentData` near the top of `GlyphTable.cpp` (or in `GlyphTable.h`) with fields: `uint16_t glyphIndex; float a, b, c, d; int16_t dx, dy;`
-  - [ ] Replace the nine parallel vectors (`glyphIndexs`, `argument1s`, `argument2s`, `as`, `bs`, `cs`, `ds`, `ms`, `ns`) with `std::vector<ComponentData> components`
-  - [ ] Rewrite the `while (keepGoing)` loop to build one `ComponentData` per iteration and `push_back` it to `components`
-  - [ ] Remove `ms` and `ns` — their computation was wrong (B8) and they were never used after being computed; omit them in the refactor
-  - [ ] Rewrite the coordinate-transform loop to use `components[i].a`, `components[i].dx`, etc.
-  - [ ] This resolves N4 (`glyphIndexs` rename) as a side effect — no need for the rename if the vector is gone
+- [x] **D6** `parseCompoundGlyph` uses nine parallel vectors to track per-component data, which is fragile and hard to read.
+  - [x] Define a `struct ComponentData` near the top of `GlyphTable.cpp` (or in `GlyphTable.h`) with fields: `uint16_t glyphIndex; float a, b, c, d; int16_t dx, dy;`
+  - [x] Replace the nine parallel vectors (`glyphIndexs`, `argument1s`, `argument2s`, `as`, `bs`, `cs`, `ds`, `ms`, `ns`) with `std::vector<ComponentData> components`
+  - [x] Rewrite the `while (keepGoing)` loop to build one `ComponentData` per iteration and `push_back` it to `components`
+  - [x] Remove `ms` and `ns` — their computation was wrong (B8) and they were never used after being computed; omit them in the refactor
+  - [x] Rewrite the coordinate-transform loop to use `components[i].a`, `components[i].dx`, etc.
+  - [x] This resolves N4 (`glyphIndexs` rename) as a side effect — no need for the rename if the vector is gone
 
-- [ ] **D7** `MovableLine.h` declares three methods with no implementation file — linker failure if ever called.
-  - [ ] `grep -r "MovableLine" .` to confirm no call sites in the rendering pipeline
-  - [ ] Remove `include/MovableLine.h`
-  - [ ] Remove `#include "MovableLine.h"` from `GlyphTable.h` (also done as part of D4)
-  - [ ] Remove `#include "MovableLine.h"` from `Helpers.h` if present
+- [x] **D7** `MovableLine.h` declares three methods with no implementation file — linker failure if ever called.
+  - [x] `grep -r "MovableLine" .` to confirm no call sites in the rendering pipeline
+  - [x] Remove `include/MovableLine.h`
+  - [x] Remove `#include "MovableLine.h"` from `GlyphTable.h` (also done as part of D4)
+  - [x] Remove `#include "MovableLine.h"` from `Helpers.h` if present
 
-- [ ] **D8** `MovablePoint` and `MovableLine` are unused dead code. `MovablePoint::move()` is a documented no-op.
-  - [ ] Confirm neither class is referenced anywhere: `grep -r "MovablePoint\|MovableLine" .`
-  - [ ] Delete `src/MovablePoint.cpp`
-  - [ ] Delete `include/MovablePoint.h`
-  - [ ] Delete `include/MovableLine.h` if not already done in D7
-  - [ ] Remove `src/MovablePoint.cpp` from `SRCS` in the makefile
-  - [ ] Compile and confirm nothing breaks
+- [x] **D8** `MovablePoint` and `MovableLine` are unused dead code. `MovablePoint::move()` is a documented no-op.
+  - [x] Confirm neither class is referenced anywhere: `grep -r "MovablePoint\|MovableLine" .`
+  - [x] Delete `src/MovablePoint.cpp`
+  - [x] Delete `include/MovablePoint.h`
+  - [x] Delete `include/MovableLine.h` if not already done in D7
+  - [x] Remove `src/MovablePoint.cpp` from `SRCS` in the makefile
+  - [x] Compile and confirm nothing breaks
 
-- [ ] **D9** `HeadTable` and `MaxpTable` are pure data containers — 30+ trivial getters add noise with no benefit.
-  - [ ] Convert `HeadTable` to a `struct` with all fields `public` in `HeadTable.h` (keep `static parseHeadDirectory`)
-  - [ ] Remove all 17 getter declarations from `HeadTable.h`
-  - [ ] Remove all 17 getter implementations from `HeadTable.cpp`
-  - [ ] Find all call sites of `HeadTable` getters (grep for `headTable.get`) and change to direct field access (e.g. `headTable.getIndexToLocFormat()` → `headTable.indexToLocFormat`)
-  - [ ] Convert `MaxpTable` to a `struct` the same way
-  - [ ] Remove all 15 getter declarations from `MaxpTable.h`
-  - [ ] Remove all 15 getter implementations from `MaxpTable.cpp`
-  - [ ] Update all `MaxpTable` getter call sites to direct field access
-  - [ ] Compile and confirm no remaining getter calls
+- [x] **D9** `HeadTable` and `MaxpTable` are pure data containers — 30+ trivial getters add noise with no benefit.
+  - [x] Convert `HeadTable` to a `struct` with all fields `public` in `HeadTable.h` (keep `static parseHeadDirectory`)
+  - [x] Remove all 17 getter declarations from `HeadTable.h`
+  - [x] Remove all 17 getter implementations from `HeadTable.cpp`
+  - [x] Find all call sites of `HeadTable` getters (grep for `headTable.get`) and change to direct field access (e.g. `headTable.getIndexToLocFormat()` → `headTable.indexToLocFormat`)
+  - [x] Convert `MaxpTable` to a `struct` the same way
+  - [x] Remove all 15 getter declarations from `MaxpTable.h`
+  - [x] Remove all 15 getter implementations from `MaxpTable.cpp`
+  - [x] Update all `MaxpTable` getter call sites to direct field access
+  - [x] Compile and confirm no remaining getter calls
 
-- [ ] **D10** `LocaTable` stores two separate arrays and throws if you call the wrong getter. Unify into a single `vector<uint32_t>`.
-  - [ ] Remove the `bool is32bitFormat` private member from `LocaTable`
-  - [ ] Remove the `offsets16` (`vector<uint16_t>`) private member from `LocaTable`
-  - [ ] Rename `offsets32` to `offsets` and make it the sole storage member (type `vector<uint32_t>`)
-  - [ ] Update `LocaTable::parse`: for the 16-bit format path, multiply each value by 2 before storing (`offsets32[i] = read2Bytes(data, pos) * 2u`) — this is required by the TTF spec
-  - [ ] Remove `getOffsets16()` and `getOffsets32()` declarations and implementations
-  - [ ] Add `const std::vector<uint32_t>& getOffsets() const` declaration and implementation
-  - [ ] Update `TTFFile::parse` to remove the `if (indexToLocFormat)` branch for building `locas` — replace with a single `locaTable.getOffsets()`
+- [x] **D10** `LocaTable` stores two separate arrays and throws if you call the wrong getter. Unify into a single `vector<uint32_t>`.
+  - [x] Remove the `bool is32bitFormat` private member from `LocaTable`
+  - [x] Remove the `offsets16` (`vector<uint16_t>`) private member from `LocaTable`
+  - [x] Rename `offsets32` to `offsets` and make it the sole storage member (type `vector<uint32_t>`)
+  - [x] Update `LocaTable::parse`: for the 16-bit format path, multiply each value by 2 before storing (`offsets32[i] = read2Bytes(data, pos) * 2u`) — this is required by the TTF spec
+  - [x] Remove `getOffsets16()` and `getOffsets32()` declarations and implementations
+  - [x] Add `const std::vector<uint32_t>& getOffsets() const` declaration and implementation
+  - [x] Update `TTFFile::parse` to remove the `if (indexToLocFormat)` branch for building `locas` — replace with a single `locaTable.getOffsets()`
 
-- [ ] **D11** `CmapTable::getGlyphIndex` performs three separate linear scans through the subtables list on every character lookup.
-  - [ ] Add a `const CmapSubtable* activeSubtable = nullptr` private member to `CmapTable` in `CmapTable.h`
-  - [ ] In the `CmapTable` constructor, after the subtable parse loop, do a single pass to select the best subtable: prefer (platformID=3, encodingID=10) → (3, 1) → (1, 0) — store a pointer to the selected element in `activeSubtable`
-  - [ ] Note: `activeSubtable` must point into the `subtables` vector, so make sure `subtables` is never reallocated after this point (it isn't — the constructor is done)
-  - [ ] Rewrite `CmapTable::getGlyphIndex` to call `activeSubtable->getGlyphIndex(unicodeValue)` directly
-  - [ ] Handle `activeSubtable == nullptr` by throwing `std::runtime_error("no supported cmap subtable found")`
-  - [ ] Remove the three old for-loops and the dead `break` statements (resolves X2)
+- [x] **D11** `CmapTable::getGlyphIndex` performs three separate linear scans through the subtables list on every character lookup.
+  - [x] Add a `const CmapSubtable* activeSubtable = nullptr` private member to `CmapTable` in `CmapTable.h`
+  - [x] In the `CmapTable` constructor, after the subtable parse loop, do a single pass to select the best subtable: prefer (platformID=3, encodingID=10) → (3, 1) → (1, 0) — store a pointer to the selected element in `activeSubtable`
+  - [x] Note: `activeSubtable` must point into the `subtables` vector, so make sure `subtables` is never reallocated after this point (it isn't — the constructor is done)
+  - [x] Rewrite `CmapTable::getGlyphIndex` to call `activeSubtable->getGlyphIndex(unicodeValue)` directly
+  - [x] Handle `activeSubtable == nullptr` by throwing `std::runtime_error("no supported cmap subtable found")`
+  - [x] Remove the three old for-loops and the dead `break` statements (resolves X2)
 
 ---
 
 ## PERFORMANCE
 
-- [ ] **P1** `main.cpp:124–147` — Entire canvas cleared and all glyphs redrawn every frame even when nothing changes.
-  - [ ] Add `bool canvasDirty = true` before the main loop
-  - [ ] Wrap the canvas clear + glyph draw block (`SDL_SetRenderTarget` → second `SDL_SetRenderTarget(nullptr)`) in `if (canvasDirty)`
-  - [ ] Set `canvasDirty = false` at the end of the draw block
-  - [ ] Set `canvasDirty = true` in the `SDLK_PLUS` and `SDLK_EQUALS` key cases (zoom in)
-  - [ ] Set `canvasDirty = true` in the `SDLK_MINUS` key case (zoom out)
-  - [ ] Keep the `SDL_RenderCopy` from canvas to window outside the dirty check — it runs every frame to blit the cached canvas
+- [x] **P1** `main.cpp:124–147` — Entire canvas cleared and all glyphs redrawn every frame even when nothing changes.
+  - [x] Add `bool canvasDirty = true` before the main loop
+  - [x] Wrap the canvas clear + glyph draw block (`SDL_SetRenderTarget` → second `SDL_SetRenderTarget(nullptr)`) in `if (canvasDirty)`
+  - [x] Set `canvasDirty = false` at the end of the draw block
+  - [x] Set `canvasDirty = true` in the `SDLK_PLUS` and `SDLK_EQUALS` key cases (zoom in)
+  - [x] Set `canvasDirty = true` in the `SDLK_MINUS` key case (zoom out)
+  - [x] Keep the `SDL_RenderCopy` from canvas to window outside the dirty check — it runs every frame to blit the cached canvas
 
-- [ ] **P2** `Helpers.cpp:22–30` — `DrawBezier` heap-allocates two `vector<SDL_Point>` on every call.
-  - [ ] Add `#include <array>` to `Helpers.cpp`
-  - [ ] Replace `std::vector<SDL_Point> points` with `std::array<SDL_Point, 21> points` and add `int pointCount = 0`
-  - [ ] Replace `points.push_back(point)` with `points[pointCount++] = point`
-  - [ ] Replace `std::vector<SDL_Point> simplifiedPoints` with `std::array<SDL_Point, 21> simplified` and `int simplifiedCount = 0`
-  - [ ] Replace `simplifiedPoints.push_back(...)` with `simplified[simplifiedCount++] = ...`
-  - [ ] Update `points.front()` → `points[0]`, `simplifiedPoints.back()` → `simplified[simplifiedCount - 1]`
-  - [ ] Update all `.size()` calls to use `pointCount` and `simplifiedCount` respectively
+- [x] **P2** `Helpers.cpp:22–30` — `DrawBezier` heap-allocates two `vector<SDL_Point>` on every call.
+  - [x] Add `#include <array>` to `Helpers.cpp`
+  - [x] Replace `std::vector<SDL_Point> points` with `std::array<SDL_Point, 21> points` and add `int pointCount = 0`
+  - [x] Replace `points.push_back(point)` with `points[pointCount++] = point`
+  - [x] Replace `std::vector<SDL_Point> simplifiedPoints` with `std::array<SDL_Point, 21> simplified` and `int simplifiedCount = 0`
+  - [x] Replace `simplifiedPoints.push_back(...)` with `simplified[simplifiedCount++] = ...`
+  - [x] Update `points.front()` → `points[0]`, `simplifiedPoints.back()` → `simplified[simplifiedCount - 1]`
+  - [x] Update all `.size()` calls to use `pointCount` and `simplifiedCount` respectively
 
-- [ ] **P3** `main.cpp:77–78` — `ADVANCEWIDTH` and `ADVANCEHEIGHT` recomputed on every iteration of the outer render loop and every iteration of the inner glyph loop.
-  - [ ] Move `ADVANCEWIDTH` and `ADVANCEHEIGHT` declarations to just before the `while (!quit)` loop
-  - [ ] Since they depend on `scalingFactor`, update them in the same key-event cases where `scalingFactor` changes (alongside setting `canvasDirty = true` from P1)
+- [x] **P3** `main.cpp:77–78` — `ADVANCEWIDTH` and `ADVANCEHEIGHT` recomputed on every iteration of the outer render loop and every iteration of the inner glyph loop.
+  - [x] Move `ADVANCEWIDTH` and `ADVANCEHEIGHT` declarations to just before the `while (!quit)` loop
+  - [x] Since they depend on `scalingFactor`, update them in the same key-event cases where `scalingFactor` changes (alongside setting `canvasDirty = true` from P1)
 
-- [ ] **P4** `main.cpp:77` — Advance width hardcoded to 600 font units for all glyphs. Blocked on `hmtx` implementation from PLANS.md Phase 1.
-  - [ ] Extract `600` to `const int NOMINAL_ADVANCE_UNITS = 600` near the top of `main.cpp`
-  - [ ] Extract `1320` to `const int NOMINAL_LINE_HEIGHT_UNITS = 1320`
-  - [ ] Add a comment: `// TODO: replace with per-glyph hmtx.getAdvanceWidth() once hmtx is parsed`
+- [x] **P4** `main.cpp:77` — Advance width hardcoded to 600 font units for all glyphs. Blocked on `hmtx` implementation from PLANS.md Phase 1.
+  - [x] Extract `600` to `const int NOMINAL_ADVANCE_UNITS = 600` near the top of `main.cpp`
+  - [x] Extract `1320` to `const int NOMINAL_LINE_HEIGHT_UNITS = 1320`
+  - [x] Add a comment: `// TODO: replace with per-glyph hmtx.getAdvanceWidth() once hmtx is parsed`
   - [ ] Wire up real values once PLANS.md Phase 1 (hmtx) is complete
 
-- [ ] **P5** `GlyphTable.cpp:339–347` — `drawSimpleGlyph` copies all coordinate and flag vectors via by-value getters on every draw call every frame.
-  - [ ] *Depends on D5* — no independent subtasks; this is automatically resolved once D5 is complete and getters return `const&`
+- [x] **P5** `GlyphTable.cpp:339–347` — `drawSimpleGlyph` copies all coordinate and flag vectors via by-value getters on every draw call every frame.
+  - [x] *Depends on D5* — no independent subtasks; this is automatically resolved once D5 is complete and getters return `const&`
 
 ---
 
 ## BUILD SYSTEM
 
-- [ ] **BLD1** `makefile` — SDL2 paths hardcoded to macOS Homebrew; the project runs on Linux where these paths don't exist.
-  - [ ] Replace `-I/opt/homebrew/include/SDL2` in `CXXFLAGS` with `$(shell sdl2-config --cflags)`
-  - [ ] Replace `-L/opt/homebrew/lib -lSDL2` in `LDFLAGS` with `$(shell sdl2-config --libs)`
-  - [ ] Run `make clean && make` on Linux to confirm it builds
+- [x] **BLD1** `makefile` — SDL2 paths hardcoded to macOS Homebrew; the project runs on Linux where these paths don't exist.
+  - [x] Replace `-I/opt/homebrew/include/SDL2` in `CXXFLAGS` with `$(shell sdl2-config --cflags)`
+  - [x] Replace `-L/opt/homebrew/lib -lSDL2` in `LDFLAGS` with `$(shell sdl2-config --libs)`
+  - [x] Run `make clean && make` on Linux to confirm it builds
   - [ ] Optional: add a fallback `$(shell pkg-config --cflags sdl2)` in case `sdl2-config` isn't on PATH
 
-- [ ] **BLD2** No release build target — only debug builds with `-g` and no optimization.
-  - [ ] Add `RELEASE_FLAGS := -O2 -DNDEBUG` near the top of the makefile
-  - [ ] Add `release` to the `.PHONY` line
-  - [ ] Add a `release` target that sets `CXXFLAGS += $(RELEASE_FLAGS)` and depends on `$(TARGET)`
+- [x] **BLD2** No release build target — only debug builds with `-g` and no optimization.
+  - [x] Add `RELEASE_FLAGS := -O2 -DNDEBUG` near the top of the makefile
+  - [x] Add `release` to the `.PHONY` line
+  - [x] Add a `release` target that sets `CXXFLAGS += $(RELEASE_FLAGS)` and depends on `$(TARGET)`
   - [ ] Ensure `-g` stays only in the default debug `CXXFLAGS` and is not inherited by the release target
 
-- [ ] **BLD3** `TEST_TARGET` and `TEST_SRCS` reference `test.cpp` which doesn't exist.
-  - [ ] Create a `tests/` directory
-  - [ ] Create `tests/test_helpers.cpp` with a single placeholder gtest: `TEST(Placeholder, True) { EXPECT_TRUE(true); }`
-  - [ ] Update `TEST_SRCS` in the makefile to point to `tests/test_helpers.cpp` instead of `test.cpp`
-  - [ ] Update the `$(TEST_TARGET)` link line to include `$(shell pkg-config --cflags --libs gtest_main)`
-  - [ ] Rename the test output binary to `test_runner` for clarity
+- [x] **BLD3** `TEST_TARGET` and `TEST_SRCS` reference `test.cpp` which doesn't exist.
+  - [x] Create a `tests/` directory
+  - [x] Create `tests/test_helpers.cpp` with a single placeholder gtest: `TEST(Placeholder, True) { EXPECT_TRUE(true); }`
+  - [x] Update `TEST_SRCS` in the makefile to point to `tests/test_helpers.cpp` instead of `test.cpp`
+  - [x] Update the `$(TEST_TARGET)` link line to include `$(shell pkg-config --cflags --libs gtest_main)`
+  - [x] Rename the test output binary to `test_runner` for clarity
   - [ ] Expand with real tests per `TESTING.md` as bug fixes are made
 
-- [ ] **BLD4** `main.o` and `main.d` emitted to the project root while all other objects go under `build/`.
-  - [ ] Change `MAIN_OBJ := main.o` to `MAIN_OBJ := $(OBJDIR)/main.o`
-  - [ ] The `MAIN_DEP` variable derives from `MAIN_OBJ` automatically — no change needed there
-  - [ ] Add `@mkdir -p $(dir $@)` to the `$(MAIN_OBJ): main.cpp` compile rule (same pattern as the other objects)
-  - [ ] Update the `clean` target — since `MAIN_OBJ` is now under `$(OBJDIR)`, removing `$(OBJDIR)` cleans it; remove the explicit `$(MAIN_OBJ) $(MAIN_DEP)` from the clean rule
+- [x] **BLD4** `main.o` and `main.d` emitted to the project root while all other objects go under `build/`.
+  - [x] Change `MAIN_OBJ := main.o` to `MAIN_OBJ := $(OBJDIR)/main.o`
+  - [x] The `MAIN_DEP` variable derives from `MAIN_OBJ` automatically — no change needed there
+  - [x] Add `@mkdir -p $(dir $@)` to the `$(MAIN_OBJ): main.cpp` compile rule (same pattern as the other objects)
+  - [x] Update the `clean` target — since `MAIN_OBJ` is now under `$(OBJDIR)`, removing `$(OBJDIR)` cleans it; remove the explicit `$(MAIN_OBJ) $(MAIN_DEP)` from the clean rule
 
-- [ ] **BLD5** No `run` target.
-  - [ ] Add `run` to the `.PHONY` line
-  - [ ] Add a `run: $(TARGET)` rule with `./$(TARGET)` as the recipe
+- [x] **BLD5** No `run` target.
+  - [x] Add `run` to the `.PHONY` line
+  - [x] Add a `run: $(TARGET)` rule with `./$(TARGET)` as the recipe
 
 ---
 
 ## NAMING / TYPOS
 
-- [ ] **N1** `maxTwighlightPoints` misspelled in `MaxpTable` everywhere — field, constructor param, getter.
-  - [ ] Rename the private field in `MaxpTable.h`: `maxTwighlightPoints` → `maxTwilightPoints`
-  - [ ] Rename the constructor parameter in `MaxpTable.h`
-  - [ ] Rename the getter declaration: `getMaxTwighlightPoints` → `getMaxTwilightPoints` in `MaxpTable.h`
-  - [ ] Rename the field in the constructor initializer list in `MaxpTable.cpp`
-  - [ ] Rename the getter definition in `MaxpTable.cpp`
-  - [ ] Rename the local variable in `parseMaxpDirectory` in `MaxpTable.cpp`
-  - [ ] Run `grep -r "Twighlight" .` to catch any remaining occurrences
+- [x] **N1** `maxTwighlightPoints` misspelled in `MaxpTable` everywhere — field, constructor param, getter.
+  - [x] Rename the private field in `MaxpTable.h`: `maxTwighlightPoints` → `maxTwilightPoints`
+  - [x] Rename the constructor parameter in `MaxpTable.h`
+  - [x] Rename the getter declaration: `getMaxTwighlightPoints` → `getMaxTwilightPoints` in `MaxpTable.h`
+  - [x] Rename the field in the constructor initializer list in `MaxpTable.cpp`
+  - [x] Rename the getter definition in `MaxpTable.cpp`
+  - [x] Rename the local variable in `parseMaxpDirectory` in `MaxpTable.cpp`
+  - [x] Run `grep -r "Twighlight" .` to catch any remaining occurrences
 
-- [ ] **N2** `intializeTexture` missing the second 'i'.
-  - [ ] Rename `intializeTexture` → `initializeTexture` in `SDLInitializer.h` declaration
-  - [ ] Rename in `SDLInitializer.cpp` function definition
-  - [ ] Update the call site in `main.cpp:66`
+- [x] **N2** `intializeTexture` missing the second 'i'.
+  - [x] Rename `intializeTexture` → `initializeTexture` in `SDLInitializer.h` declaration
+  - [x] Rename in `SDLInitializer.cpp` function definition
+  - [x] Update the call site in `main.cpp:66`
 
-- [ ] **N3** `CalcTableChecksum` uses PascalCase; all other free functions use camelCase.
-  - [ ] Rename `CalcTableChecksum` → `calcTableChecksum` in `Helpers.h`
-  - [ ] Rename the definition in `Helpers.cpp`
-  - [ ] Update the call site in `TTFTable.cpp`
+- [x] **N3** `CalcTableChecksum` uses PascalCase; all other free functions use camelCase.
+  - [x] Rename `CalcTableChecksum` → `calcTableChecksum` in `Helpers.h`
+  - [x] Rename the definition in `Helpers.cpp`
+  - [x] Update the call site in `TTFTable.cpp`
 
-- [ ] **N4** `glyphIndexs` should be `glyphIndices` in `GlyphTable.cpp:110`.
-  - [ ] Note: *this variable is eliminated by D6* (it becomes part of `ComponentData`). If doing D6, skip this item. If not doing D6 yet, rename it now.
-  - [ ] If renaming independently: find-replace `glyphIndexs` → `glyphIndices` within `parseCompoundGlyph`
+- [x] **N4** `glyphIndexs` should be `glyphIndices` in `GlyphTable.cpp:110`.
+  - [x] Note: *this variable is eliminated by D6* (it becomes part of `ComponentData`). If doing D6, skip this item. If not doing D6 yet, rename it now.
+  - [x] If renaming independently: find-replace `glyphIndexs` → `glyphIndices` within `parseCompoundGlyph`
 
-- [ ] **N5** `u_long` is POSIX-specific; use `size_t`.
-  - [ ] Change `for (u_long i = 0;` → `for (size_t i = 0;` on `GlyphTable.cpp:208`
-  - [ ] Change `for (u_long j = 0;` → `for (size_t j = 0;` on `GlyphTable.cpp:223`
+- [x] **N5** `u_long` is POSIX-specific; use `size_t`.
+  - [x] Change `for (u_long i = 0;` → `for (size_t i = 0;` on `GlyphTable.cpp:208`
+  - [x] Change `for (u_long j = 0;` → `for (size_t j = 0;` on `GlyphTable.cpp:223`
 
-- [ ] **N6** `buildTableMap` in `TTFHeader.cpp` has external linkage but is only used in that translation unit.
-  - [ ] Add `static` before `TableMap buildTableMap(...)` in `TTFHeader.cpp`
+- [x] **N6** `buildTableMap` in `TTFHeader.cpp` has external linkage but is only used in that translation unit.
+  - [x] Add `static` before `TableMap buildTableMap(...)` in `TTFHeader.cpp`
 
 ---
 
 ## DEAD / COMMENTED-OUT CODE
 
-- [ ] **DC1** `TTFTable.cpp:44–48` — Checksum verification logic is complete but commented out.
-  - [ ] Uncomment the checksum verification block
-  - [ ] Change `fprintf(stderr, ...)` and `printf(...)` to `std::cerr` to match the rest of the codebase
-  - [ ] Change behavior on mismatch from silent to `std::cerr` warning (not a throw — some fonts have benign checksum issues)
-  - [ ] Run with the actual font files and confirm all table checksums pass (fix checksum logic if any don't)
+- [x] **DC1** `TTFTable.cpp:44–48` — Checksum verification logic is complete but commented out.
+  - [x] Uncomment the checksum verification block
+  - [x] Change `fprintf(stderr, ...)` and `printf(...)` to `std::cerr` to match the rest of the codebase
+  - [x] Change behavior on mismatch from silent to `std::cerr` warning (not a throw — some fonts have benign checksum issues)
+  - [x] Run with the actual font files and confirm all table checksums pass (fix checksum logic if any don't)
 
-- [ ] **DC2** `CmapTable.cpp` — Multiple debug `cout` prints left in from development.
-  - [ ] Remove the subtable-info `cout` on line 109 (inside the constructor loop)
-  - [ ] Remove the `cout << "Using format 12"` on line 121
-  - [ ] Remove the `cout << "Using format 4"` on line 130
-  - [ ] Remove the `cout << "Using format 0"` on line 139
-  - [ ] Note: after D11, the three format-selection loops are replaced — these will be gone automatically
+- [x] **DC2** `CmapTable.cpp` — Multiple debug `cout` prints left in from development.
+  - [x] Remove the subtable-info `cout` on line 109 (inside the constructor loop)
+  - [x] Remove the `cout << "Using format 12"` on line 121
+  - [x] Remove the `cout << "Using format 4"` on line 130
+  - [x] Remove the `cout << "Using format 0"` on line 139
+  - [x] Note: after D11, the three format-selection loops are replaced — these will be gone automatically
 
-- [ ] **DC3** `TTFHeader.cpp:39` — `cout << "ttf format detected"` printed on every font parse.
-  - [ ] Remove the `cout << "ttf format detected\n"` line
-  - [ ] Keep the `cerr` lines for unsupported formats (typ1, OTTO, unknown) — those are legitimate warnings worth keeping
+- [x] **DC3** `TTFHeader.cpp:39` — `cout << "ttf format detected"` printed on every font parse.
+  - [x] Remove the `cout << "ttf format detected\n"` line
+  - [x] Keep the `cerr` lines for unsupported formats (typ1, OTTO, unknown) — those are legitimate warnings worth keeping
 
-- [ ] **DC4** `main.cpp:170–171` — Comment says "uncomment for fps debug" but the FPS `cout` is already active.
-  - [ ] Remove the `//uncomment for fps debug on console` comment on line 171
+- [x] **DC4** `main.cpp:170–171` — Comment says "uncomment for fps debug" but the FPS `cout` is already active.
+  - [x] Remove the `//uncomment for fps debug on console` comment on line 171
   - [ ] Optionally: gate the FPS print behind `#ifdef DEBUG` if you don't want it in release builds (aligns with BLD2)
 
-- [ ] **DC5** `hexToAscii` declared and implemented but never called anywhere.
-  - [ ] Run `grep -r "hexToAscii" .` to confirm no call sites
-  - [ ] Remove the `string hexToAscii(uint32_t value);` declaration from `Helpers.h`
-  - [ ] Remove the `hexToAscii` implementation block from `Helpers.cpp` (lines 83–98)
+- [x] **DC5** `hexToAscii` declared and implemented but never called anywhere.
+  - [x] Run `grep -r "hexToAscii" .` to confirm no call sites
+  - [x] Remove the `string hexToAscii(uint32_t value);` declaration from `Helpers.h`
+  - [x] Remove the `hexToAscii` implementation block from `Helpers.cpp` (lines 83–98)
 
-- [ ] **DC6** `LocaTable.cpp:4` — `#include <arpa/inet.h>` included but `ntohl`/`ntohs` not used.
-  - [ ] Remove `#include <arpa/inet.h>` from `LocaTable.cpp`
+- [x] **DC6** `LocaTable.cpp:4` — `#include <arpa/inet.h>` included but `ntohl`/`ntohs` not used.
+  - [x] Remove `#include <arpa/inet.h>` from `LocaTable.cpp`
 
 ---
 
 ## MISC
 
-- [ ] **X1** `main.cpp:185` — `file.close()` called at the end of `main`, long after the data was fully read at line 47.
-  - [ ] Move `file.close()` to immediately after `file.read(buffer.data(), fileSize)` on line 47
+- [x] **X1** `main.cpp:185` — `file.close()` called at the end of `main`, long after the data was fully read at line 47.
+  - [x] Move `file.close()` to immediately after `file.read(buffer.data(), fileSize)` on line 47
   - [ ] Or remove it entirely — `ifstream` closes automatically on destruction (RAII), making the explicit close redundant
 
-- [ ] **X2** `CmapTable.cpp:122,130,138` — `break` after `return` is unreachable dead code.
-  - [ ] Remove `break;` after the first `return subtable.getGlyphIndex(unicodeValue)` (~line 123)
-  - [ ] Remove `break;` after the second `return` (~line 131)
-  - [ ] Remove `break;` after the third `return` (~line 138)
-  - [ ] Note: after D11, these loops are replaced — this is resolved automatically
+- [x] **X2** `CmapTable.cpp:122,130,138` — `break` after `return` is unreachable dead code.
+  - [x] Remove `break;` after the first `return subtable.getGlyphIndex(unicodeValue)` (~line 123)
+  - [x] Remove `break;` after the second `return` (~line 131)
+  - [x] Remove `break;` after the third `return` (~line 138)
+  - [x] Note: after D11, these loops are replaced — this is resolved automatically
 
-- [ ] **X3** `convertEndian8` swaps nibbles of a byte, not bytes — misleading name for a meaningless operation.
-  - [ ] Run `grep -r "convertEndian8" .` to confirm no call sites
-  - [ ] Remove the `uint8_t convertEndian8(uint8_t value);` declaration from `Helpers.h`
-  - [ ] Remove the `convertEndian8` implementation from `Helpers.cpp` (lines 117–119)
+- [x] **X3** `convertEndian8` swaps nibbles of a byte, not bytes — misleading name for a meaningless operation.
+  - [x] Run `grep -r "convertEndian8" .` to confirm no call sites
+  - [x] Remove the `uint8_t convertEndian8(uint8_t value);` declaration from `Helpers.h`
+  - [x] Remove the `convertEndian8` implementation from `Helpers.cpp` (lines 117–119)
 
-- [ ] **X4** `GlyphTable.cpp:130–152` — `isWord`/`isXY` branches in `parseCompoundGlyph` read identical code regardless of the flag, ignoring the distinction between xy-offsets and point-index arguments.
-  - [ ] Read the TTF spec section on composite glyph component flags: bit 0 = `ARG_1_AND_2_ARE_WORDS`, bit 1 = `ARGS_ARE_XY_VALUES`
-  - [ ] For word-size + `ARGS_ARE_XY_VALUES`: read two `int16_t` signed values as dx, dy offsets
-  - [ ] For word-size + point indices: read two `uint16_t` unsigned values as point indices (anchor matching, not offsets)
-  - [ ] For byte-size + `ARGS_ARE_XY_VALUES`: read two `int8_t` signed values (use `readByte` + `static_cast<int8_t>`) as dx, dy
-  - [ ] For byte-size + point indices: read two `uint8_t` values as point indices
-  - [ ] Store `dx`/`dy` in the `ComponentData` struct from D6 (only valid when `ARGS_ARE_XY_VALUES` is set)
-  - [ ] For point-index mode, store the two indices and note that full support requires matching points between parent and component glyph (complex — mark as partial if only offset mode is implemented)
+- [x] **X4** `GlyphTable.cpp:130–152` — `isWord`/`isXY` branches in `parseCompoundGlyph` read identical code regardless of the flag, ignoring the distinction between xy-offsets and point-index arguments.
+  - [x] Read the TTF spec section on composite glyph component flags: bit 0 = `ARG_1_AND_2_ARE_WORDS`, bit 1 = `ARGS_ARE_XY_VALUES`
+  - [x] For word-size + `ARGS_ARE_XY_VALUES`: read two `int16_t` signed values as dx, dy offsets
+  - [x] For word-size + point indices: read two `uint16_t` unsigned values as point indices (anchor matching, not offsets)
+  - [x] For byte-size + `ARGS_ARE_XY_VALUES`: read two `int8_t` signed values (use `readByte` + `static_cast<int8_t>`) as dx, dy
+  - [x] For byte-size + point indices: read two `uint8_t` values as point indices
+  - [x] Store `dx`/`dy` in the `ComponentData` struct from D6 (only valid when `ARGS_ARE_XY_VALUES` is set)
+  - [x] For point-index mode, store the two indices and note that full support requires matching points between parent and component glyph (complex — mark as partial if only offset mode is implemented)
 
-- [ ] **X5** `GlyphTable.cpp:320–325` — `addPointsBetween` inserts a spurious off-curve midpoint between consecutive on-curve points; two on-curve points already define a straight line.
-  - [ ] Remove the `else if (isCurrentOnCurve && isNextOnCurve)` block in the main loop (lines 320–325)
-  - [ ] Remove the corresponding `else if (isLastPointOnCurve && isFirstPointOnCurve)` block in the wrap-around case (lines 285–292)
-  - [ ] Render text before and after the change — visually should be identical (collinear Bezier control points produce exact straight lines), but with fewer intermediate points
+- [ ] **X5** `GlyphTable.cpp:320–325` — `addPointsBetween` inserts an off-curve midpoint between consecutive on-curve points.
+  - [ ] *Won't fix* — intentional design: all segments (including straight lines) are driven as Bezier curves for uniform rendering
 
-- [ ] **X6** `main.cpp:77` — `ADVANCEWIDTH = 600 * scalingFactor` hardcodes 600 font units; only works for this one font.
-  - [ ] Extract `600` to `const int NOMINAL_ADVANCE_UNITS = 600` near the top of `main.cpp`
-  - [ ] Extract `1320` to `const int NOMINAL_LINE_HEIGHT_UNITS = 1320` similarly
-  - [ ] Add a comment noting both should come from `hmtx`/`hhea` once PLANS.md Phase 1 is done
+- [x] **X6** `main.cpp:77` — `ADVANCEWIDTH = 600 * scalingFactor` hardcodes 600 font units; only works for this one font.
+  - [x] Extract `600` to `const int NOMINAL_ADVANCE_UNITS = 600` near the top of `main.cpp`
+  - [x] Extract `1320` to `const int NOMINAL_LINE_HEIGHT_UNITS = 1320` similarly
+  - [x] Add a comment noting both should come from `hmtx`/`hhea` once PLANS.md Phase 1 is done
   - [ ] This item is fully resolved by PLANS.md Phase 1
 
 ## LINTING (clang-tidy)

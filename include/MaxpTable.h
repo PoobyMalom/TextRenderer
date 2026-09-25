@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
+#include "FontTypes.h"
 
 /*
 Fixed	version	0x00010000 (1.0)

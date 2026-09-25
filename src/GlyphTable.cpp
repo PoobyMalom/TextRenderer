@@ -10,18 +10,18 @@ using namespace std;
 
 Glyph::Glyph(
     int16_t numberOfContours, // NOLINT(bugprone-easily-swappable-parameters)
-    int16_t xMin,
-    int16_t yMin, // NOLINT(bugprone-easily-swappable-parameters)
-    int16_t xMax,
-    int16_t yMax,
+    FWord xMin,
+    FWord yMin, // NOLINT(bugprone-easily-swappable-parameters)
+    FWord xMax,
+    FWord yMax,
     vector<uint16_t> endPtsOfContours,
     uint16_t instructionLength,
     vector<uint8_t> instructions,
     vector<uint8_t> flags,
     vector<int16_t> xCoordinates,
     vector<int16_t> yCoordinates,
-    uint16_t advanceWidth,
-    int16_t leftSideBearing
+    UFWord advanceWidth,
+    FWord leftSideBearing
 ) : numberOfContours(numberOfContours),
     xMin(xMin),
     yMin(yMin),
@@ -37,10 +37,10 @@ Glyph::Glyph(
     leftSideBearing(leftSideBearing) {}
 
 int16_t Glyph::getNumberOfContours() const { return numberOfContours; }
-int16_t Glyph::getXMin() const { return xMin; }
-int16_t Glyph::getYMin() const { return yMin; }
-int16_t Glyph::getXMax() const { return xMax; }
-int16_t Glyph::getYMax() const { return yMax; }
+FWord Glyph::getXMin() const { return xMin; }
+FWord Glyph::getYMin() const { return yMin; }
+FWord Glyph::getXMax() const { return xMax; }
+FWord Glyph::getYMax() const { return yMax; }
 const vector<uint16_t>& Glyph::getEndPtsOfContours() const { return endPtsOfContours; }
 uint16_t Glyph::getInstructionLength() const { return instructionLength; }
 const vector<uint8_t>& Glyph::getInstructions() const { return instructions; }

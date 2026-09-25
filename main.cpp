@@ -24,17 +24,17 @@
 #include "Renderer.h"
 using namespace std;
 
-double scalingFactor = 0.1;
 int thickness = 2;
 
+const float INITIAL_FONT_SIZE = 228.0;
 const int SCREEN_WIDTH  = 1920;
 const int SCREEN_HEIGHT = 1080;
 const int CANVAS_WIDTH  = 10000;
 const int CANVAS_HEIGHT = 10000;
 const int SCROLL_SPEED  = 20;
 
-void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewportY, // NOLINT(bugprone-easily-swappable-parameters)
-                 bool& canvasDirty, int& advanceHeight, int lineHeightUnits) {
+void handleEvent(const SDL_Event& evt, FontTransform& ftrans, bool& quit, int& viewportX, int& viewportY, // NOLINT(bugprone-easily-swappable-parameters)
+                 bool& canvasDirty, int& advanceHeight, int& initialYOffset, int lineHeightUnits, int ascentUnits) {
     if (evt.type == SDL_QUIT) {
         quit = true;
     } else if (evt.type == SDL_KEYDOWN) {
@@ -57,14 +57,18 @@ void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewport
                 break;
             case SDLK_PLUS:
             case SDLK_EQUALS:
-                scalingFactor += 0.01;
-                advanceHeight = static_cast<int>(lineHeightUnits * scalingFactor);
+                ftrans.pixelsPerEm += 1;
+                cout << "Font Size: " << ftrans.pixelsPerEm << "\n";
+                advanceHeight  = static_cast<int>(ftrans.toPixels(lineHeightUnits));
+                initialYOffset = static_cast<int>(ftrans.toPixels(ascentUnits));
                 canvasDirty = true;
                 break;
             case SDLK_MINUS:
-                scalingFactor -= 0.01;
-                scalingFactor = std::max(scalingFactor, 0.01);
-                advanceHeight = static_cast<int>(lineHeightUnits * scalingFactor);
+                ftrans.pixelsPerEm -= 1;
+                ftrans.pixelsPerEm = std::max(ftrans.pixelsPerEm, 1.0f);
+                cout << "Font Size: " << ftrans.pixelsPerEm << "\n";
+                advanceHeight  = static_cast<int>(ftrans.toPixels(lineHeightUnits));
+                initialYOffset = static_cast<int>(ftrans.toPixels(ascentUnits));
                 canvasDirty = true;
                 break;
             default:
@@ -80,7 +84,7 @@ void handleEvent(const SDL_Event& evt, bool& quit, int& viewportX, int& viewport
     }
 }
 
-void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
+void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture, FontTransform& ftrans,
                  const vector<Glyph>& glyphs, int viewportX, int viewportY,
                  bool& canvasDirty, int initialYOffset, int advanceHeight) {
     if (canvasDirty) {
@@ -93,17 +97,16 @@ void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
         int currentYOffset = initialYOffset;
 
         for (size_t i = 0; i < glyphs.size(); ++i) {
-            if (currentXOffset >= CANVAS_WIDTH - glyphs[i].getAdvanceWidth() * scalingFactor) {
+            if (currentXOffset + static_cast<int>(ftrans.toPixels(glyphs[i].getAdvanceWidth())) >= CANVAS_WIDTH) {
                 currentXOffset = 0;
                 currentYOffset += advanceHeight;
             }
             try {
-                drawSimpleGlyph(renderer, glyphs[i], currentXOffset, currentYOffset,
-                                       scalingFactor, SCREEN_HEIGHT, thickness);
+                drawSimpleGlyph(renderer, glyphs[i], ftrans, currentXOffset, currentYOffset, thickness);
             } catch (const std::exception& err) {
                 cerr << "Error drawing glyph " << i << ": " << err.what() << '\n';
             }
-            currentXOffset += glyphs[i].getAdvanceWidth() * scalingFactor;
+            currentXOffset += ftrans.toPixels(glyphs[i].getAdvanceWidth());
         }
 
         SDL_SetRenderTarget(renderer, nullptr);
@@ -118,8 +121,12 @@ void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture,
     SDL_RenderCopy(renderer, canvasTexture, &srcRect, &dstRect);
 }
 
-int main() {
-    string fileName = "src/fonts/papyrus.ttf";
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        cerr << "Usage: ./main <font.ttf>\n";
+        return 1;
+    }
+    string fileName = argv[1];
     ifstream file(fileName, ios::binary);
 
     if (!file.is_open()) {
@@ -141,11 +148,13 @@ int main() {
     file.close();
 
     TTFFile ttfFile = TTFFile::parse(buffer);
+    FontTransform ftrans = {INITIAL_FONT_SIZE, ttfFile.getHeadTable().unitsPerEm};
 
-    int lineHeightUnits = ttfFile.getMetricsTable().getHheaTable().ascent - ttfFile.getMetricsTable().getHheaTable().descent + ttfFile.getMetricsTable().getHheaTable().lineGap;
-    int advanceHeight = static_cast<int>(lineHeightUnits * scalingFactor);
-    cout << advanceHeight << "\n";
-    int initialYOffset = ttfFile.getMetricsTable().getHheaTable().ascent * scalingFactor;
+    int ascentUnits     = ttfFile.getMetricsTable().getHheaTable().ascent;
+    int lineHeightUnits = ascentUnits - ttfFile.getMetricsTable().getHheaTable().descent + ttfFile.getMetricsTable().getHheaTable().lineGap;
+    int advanceHeight   = static_cast<int>(ftrans.toPixels(lineHeightUnits));
+    int initialYOffset  = static_cast<int>(ftrans.toPixels(ascentUnits));
+
 
     vector<Glyph> glyphs;
     try {
@@ -172,10 +181,10 @@ int main() {
 
     while (!quit) {
         while (SDL_PollEvent(&evt) != 0) {
-            handleEvent(evt, quit, viewportX, viewportY, canvasDirty, advanceHeight, lineHeightUnits);
+            handleEvent(evt, ftrans, quit, viewportX, viewportY, canvasDirty, advanceHeight, initialYOffset, lineHeightUnits, ascentUnits);
         }
 
-        renderFrame(renderer, canvasTexture, glyphs, viewportX, viewportY,
+        renderFrame(renderer, canvasTexture, ftrans, glyphs, viewportX, viewportY,
                     canvasDirty, initialYOffset, advanceHeight);
 
         frameCount++;

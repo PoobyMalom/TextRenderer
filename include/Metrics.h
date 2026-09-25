@@ -1,10 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-
-using FWord = int16_t;
-using UFWord = uint16_t;
-using Fixed = uint32_t;
+#include "FontTypes.h"
 
 struct HheaTable {
   Fixed version;
@@ -43,4 +40,19 @@ private:
   HheaTable hheaTable;
   std::vector<longHorMetric> longHorMetrics;
   std::vector<int16_t> leftSideBearings;
+};
+
+// See docs/coordinates.md for the coordinate system conventions.
+struct FontTransform {
+  float pixelsPerEm;
+  UFWord unitsPerEm;
+
+  float toPixels(int16_t fontUnits) const {
+    return fontUnits * pixelsPerEm / unitsPerEm;
+  }
+
+  // TTF is Y-up; screen/atlas is Y-down. baselineY is the pixel row of the baseline.
+  int toScreenY(int16_t fontUnits, int baselineY) const {
+    return baselineY - static_cast<int>(toPixels(fontUnits));
+  }
 };

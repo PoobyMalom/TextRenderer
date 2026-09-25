@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void drawSimpleGlyph(SDL_Renderer* renderer, const Glyph& glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight, int thickness) { // NOLINT(bugprone-easily-swappable-parameters)
+void drawSimpleGlyph(SDL_Renderer* renderer, const Glyph& glyph, FontTransform& ftrans, int xOffset, int yOffset, int thickness) { // NOLINT(bugprone-easily-swappable-parameters)
     vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
 
     int currentContour = 0;
@@ -26,16 +26,16 @@ void drawSimpleGlyph(SDL_Renderer* renderer, const Glyph& glyph, int xOffset, in
             size_t ctrlIdx = wrapIdx(j, 1);
             size_t endIdx = wrapIdx(j, 2);
             SDL_Point point1 = {
-                static_cast<int>((xCoordinates[j] * scalingFactor) + xOffset),
-                static_cast<int>(screenHeight - (yCoordinates[j] * scalingFactor) + yOffset)
+                static_cast<int>(ftrans.toPixels(xCoordinates[j]) + xOffset),
+                ftrans.toScreenY(yCoordinates[j], yOffset)
             };
             SDL_Point controlPoint = {
-                static_cast<int>((xCoordinates[ctrlIdx] * scalingFactor) + xOffset),
-                static_cast<int>(screenHeight - (yCoordinates[ctrlIdx] * scalingFactor) + yOffset)
+                static_cast<int>(ftrans.toPixels(xCoordinates[ctrlIdx]) + xOffset),
+                ftrans.toScreenY(yCoordinates[ctrlIdx], yOffset)
             };
             SDL_Point point2 = {
-                static_cast<int>((xCoordinates[endIdx] * scalingFactor) + xOffset),
-                static_cast<int>(screenHeight - (yCoordinates[endIdx] * scalingFactor) + yOffset)
+                static_cast<int>(ftrans.toPixels(xCoordinates[endIdx]) + xOffset),
+                ftrans.toScreenY(yCoordinates[endIdx], yOffset)
             };
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             DrawBezier(renderer, point1, controlPoint, point2);
