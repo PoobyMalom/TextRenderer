@@ -1,58 +1,73 @@
 #include "GlyphTable.h"
 #include "Helpers.h"
 #include "TTFHeader.h"
-#include "TTFFile.h"
-#include "MovableLine.h"
 #include <vector>
 #include <tuple>
 #include <iostream>
 #include <bitset>
+#include <cmath>
 using namespace std;
 
 Glyph::Glyph(
-    int16_t numberOfContours,
-    int16_t xMin,
-    int16_t yMin,
-    int16_t xMax,
-    int16_t yMax,
+    int16_t numberOfContours, // NOLINT(bugprone-easily-swappable-parameters)
+    FWord xMin,
+    FWord yMin, // NOLINT(bugprone-easily-swappable-parameters)
+    FWord xMax,
+    FWord yMax,
     vector<uint16_t> endPtsOfContours,
     uint16_t instructionLength,
     vector<uint8_t> instructions,
     vector<uint8_t> flags,
     vector<int16_t> xCoordinates,
-    vector<int16_t> yCoordinates
+    vector<int16_t> yCoordinates,
+    UFWord advanceWidth,
+    FWord leftSideBearing
 ) : numberOfContours(numberOfContours),
     xMin(xMin),
     yMin(yMin),
     xMax(xMax),
-    yMax(yMax), 
-    endPtsOfContours(endPtsOfContours),
+    yMax(yMax),
+    endPtsOfContours(std::move(endPtsOfContours)),
     instructionLength(instructionLength),
-    instructions(instructions),
-    flags(flags),
-    xCoordinates(xCoordinates),
-    yCoordinates(yCoordinates) {}
+    instructions(std::move(instructions)),
+    flags(std::move(flags)),
+    xCoordinates(std::move(xCoordinates)),
+    yCoordinates(std::move(yCoordinates)),
+    advanceWidth(advanceWidth),
+    leftSideBearing(leftSideBearing) {}
 
 int16_t Glyph::getNumberOfContours() const { return numberOfContours; }
-int16_t Glyph::getXMin() const { return xMin; }
-int16_t Glyph::getYMin() const { return yMin; }
-int16_t Glyph::getXMax() const { return xMax; }
-int16_t Glyph::getYMax() const { return yMax; }
-vector<uint16_t> Glyph::getEndPtsOfContours() const { return endPtsOfContours; }
+FWord Glyph::getXMin() const { return xMin; }
+FWord Glyph::getYMin() const { return yMin; }
+FWord Glyph::getXMax() const { return xMax; }
+FWord Glyph::getYMax() const { return yMax; }
+const vector<uint16_t>& Glyph::getEndPtsOfContours() const { return endPtsOfContours; }
 uint16_t Glyph::getInstructionLength() const { return instructionLength; }
-vector<uint8_t> Glyph::getInstructions() const { return instructions; }
-vector<uint8_t> Glyph::getFlags() const { return flags; }
-vector<int16_t> Glyph::getXCoordinates() const { return xCoordinates; }
-vector<int16_t> Glyph::getYCoordinates() const { return yCoordinates; }
+const vector<uint8_t>& Glyph::getInstructions() const { return instructions; }
+const vector<uint8_t>& Glyph::getFlags() const { return flags; }
+const vector<int16_t>& Glyph::getXCoordinates() const { return xCoordinates; }
+const vector<int16_t>& Glyph::getYCoordinates() const { return yCoordinates; }
+uint16_t Glyph::getAdvanceWidth() const { return advanceWidth; }
+int16_t Glyph::getLeftSideBearing() const { return leftSideBearing; }
 
-Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
-    int pos = offset;
+void Glyph::setAdvanceWidth(uint16_t width) {
+    advanceWidth = width;
+}
+
+void Glyph::setLeftSideBearing(int16_t lsb) {
+    leftSideBearing = lsb;
+}
+
+Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t numberOfContours, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) { // NOLINT(bugprone-easily-swappable-parameters)
+    int pos = static_cast<int>(offset);
 
     vector<uint16_t> endPtsOfContours;
+    endPtsOfContours.reserve(numberOfContours);
     for (int i = 0; i < numberOfContours; ++i) { endPtsOfContours.push_back(read2Bytes(data, pos)); }
 
     uint16_t instructionLength = read2Bytes(data, pos);
-    vector<uint8_t> instructions(instructionLength);
+    vector<uint8_t> instructions;
+    instructions.reserve(instructionLength);
     for (int i = 0; i < instructionLength; ++i) { instructions.push_back(readByte(data, pos)); }
 
     vector<uint8_t> flags;
@@ -60,7 +75,7 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t
     for (int i = 0; i < totalPoints; ++i) {
         uint8_t flag = data[pos++];
         flags.push_back(flag);
-        if (flag & 8) { // Repeat flag
+        if ((flag & 8) != 0) { // Repeat flag
             uint8_t repeatCount = data[pos++];
             for (int j = 0; j < repeatCount; ++j) {
                 flags.push_back(flag);
@@ -72,15 +87,15 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t
     vector<int16_t> xCoordinates;
     int16_t currentX = 0;
     for (int i = 0; i < totalPoints; ++i) {
-        if (flags[i] & 2) { // Short vector
-            uint8_t delta = static_cast<uint8_t>(data[pos++]);
-            if (!(flags[i] & 16)) { // Short vector with negative values
-                currentX -= delta;
+        if ((flags[i] & 2) != 0) { // Short vector
+            auto delta = static_cast<uint8_t>(data[pos++]);
+            if (!((flags[i] & 16) != 0)) { // Short vector with negative values
+                currentX = static_cast<int16_t>(currentX - delta);
             } else { // Short vector with positive values
-                currentX += delta;
+                currentX = static_cast<int16_t>(currentX + delta);
             }
-        } else if (!(flags[i] & 16)) { // Long vector
-            currentX += read2Bytes(data, pos);
+        } else if (!((flags[i] & 16) != 0)) { // Long vector
+            currentX = static_cast<int16_t>(currentX + readS16(data, pos));
         }
         xCoordinates.push_back(currentX);
     }
@@ -88,112 +103,94 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t
     vector<int16_t> yCoordinates;
     int16_t currentY = 0;
     for (int i = 0; i < totalPoints; ++i) {
-        if (flags[i] & 4) { // Short vector
-            uint8_t delta = static_cast<uint8_t>(data[pos++]);
-            if (flags[i] & 32) { // Short vector with positive values
-                currentY += delta;
+        if ((flags[i] & 4) != 0) { // Short vector
+            auto delta = static_cast<uint8_t>(data[pos++]);
+            if ((flags[i] & 32) != 0) { // Short vector with positive values
+                currentY = static_cast<int16_t>(currentY + delta);
             } else { // Short vector with negative values
-                currentY -= delta;
+                currentY = static_cast<int16_t>(currentY - delta);
             }
-        } else if (!(flags[i] & 32)) { // Long vector
-            currentY += read2Bytes(data, pos);
+        } else if (!((flags[i] & 32) != 0)) { // Long vector
+            currentY = static_cast<int16_t>(currentY + readS16(data, pos));
         }
         yCoordinates.push_back(currentY);
     }
 
-    return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates);
+    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates, 0, 0};
 }
 
-Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
-    int pos = offset;
+Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>& locas, uint32_t glyfTableBase, uint32_t componentDataStart, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) { // NOLINT(bugprone-easily-swappable-parameters, readability-function-cognitive-complexity)
+    struct ComponentData { // NOLINT(readability-identifier-length)
+        uint16_t glyphIndex;
+        float a, b, c, d;
+        int16_t dx, dy;
+    };
+
+    int pos = static_cast<int>(componentDataStart);
     bool keepGoing = true;
-    vector<uint16_t> glyphIndexs;
-    vector<int16_t> argument1s;
-    vector<int16_t> argument2s;
-    vector<int16_t> as;
-    vector<int16_t> bs;
-    vector<int16_t> cs;
-    vector<int16_t> ds;
-    vector<int32_t> ms;
-    vector<int32_t> ns;
+    vector<ComponentData> components;
 
     while (keepGoing) {
         uint16_t flag = read2Bytes(data, pos);
-        bool isWord = flag & 1;
-        bool isXY = flag >> 1 & 1;
-        bool moreGlyphs = flag >> 5 & 1;
+        bool isWord = (flag & 1) != 0;
+        bool isXY = (flag >> 1 & 1) != 0;
+        bool moreGlyphs = (flag >> 5 & 1) != 0;
         if (!moreGlyphs) {
             keepGoing = false;
         }
-        bool weHaveScale = flag >> 3 & 1;
-        bool weHaveXYScale = flag >> 6 & 1;
-        bool weHaveTwoByTwo = flag >> 7 & 1;
+        bool weHaveScale = (flag >> 3 & 1) != 0;
+        bool weHaveXYScale = (flag >> 6 & 1) != 0;
+        bool weHaveTwoByTwo = (flag >> 7 & 1) != 0;
 
-        glyphIndexs.push_back(read2Bytes(data, pos));
+        ComponentData comp{};
+        comp.glyphIndex = read2Bytes(data, pos);
 
-        int16_t argument1;
-        int16_t argument2;
         if (isWord) {
             if (isXY) {
-                argument1 = read2Bytes(data, pos);
-                argument2 = read2Bytes(data, pos);
+                // Signed 16-bit xy offsets
+                comp.dx = readS16(data, pos);
+                comp.dy = readS16(data, pos);
             } else {
-                argument1 = read2Bytes(data, pos);
-                argument2 = read2Bytes(data, pos);
+                // Unsigned 16-bit point indices — anchor matching not implemented; consume and zero
+                read2Bytes(data, pos);
+                read2Bytes(data, pos);
+                comp.dx = 0;
+                comp.dy = 0;
             }
         } else {
             if (isXY) {
-                argument1 = static_cast<int16_t>(readByte(data, pos));
-                argument2 = static_cast<int16_t>(readByte(data, pos));
+                // Signed 8-bit xy offsets — cast via int8_t to sign-extend
+                comp.dx = static_cast<int16_t>(static_cast<int8_t>(readByte(data, pos)));
+                comp.dy = static_cast<int16_t>(static_cast<int8_t>(readByte(data, pos)));
             } else {
-                argument1 = static_cast<int16_t>(readByte(data, pos));
-                argument2 = static_cast<int16_t>(readByte(data, pos));
+                // Unsigned 8-bit point indices — anchor matching not implemented; consume and zero
+                readByte(data, pos);
+                readByte(data, pos);
+                comp.dx = 0;
+                comp.dy = 0;
             }
         }
-        argument1s.push_back(argument1);
-        argument2s.push_back(argument2);
 
-        int16_t a = 1.0;
-        int16_t b = 0.0;
-        int16_t c = 0.0;
-        int16_t d = 1.0;
+        comp.a = 1.0F;
+        comp.b = 0.0F;
+        comp.c = 0.0F;
+        comp.d = 1.0F;
 
-        if (weHaveScale) { // WE_HAVE_A_SCALE
-            int16_t scale = read2Bytes(data, pos);
-            a = scale;
-            d = scale;
-        } else if (weHaveXYScale) { // WE_HAVE_AN_X_AND_Y_SCALE
-            a = read2Bytes(data, pos);
-            d = read2Bytes(data, pos);
-        } else if (weHaveTwoByTwo) { // WE_HAVE_A_TWO_BY_TWO
-            a = read2Bytes(data, pos);
-            b = read2Bytes(data, pos);
-            c = read2Bytes(data, pos);
-            d = read2Bytes(data, pos);
+        if (weHaveScale) {
+            auto scale = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.a = scale;
+            comp.d = scale;
+        } else if (weHaveXYScale) {
+            comp.a = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.d = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+        } else if (weHaveTwoByTwo) {
+            comp.a = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.b = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.c = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
+            comp.d = static_cast<float>(static_cast<int16_t>(read2Bytes(data, pos))) / 16384.0F;
         }
 
-        as.push_back(a);
-        bs.push_back(b);
-        cs.push_back(c);
-        ds.push_back(d);
-
-        int32_t m0 = max(abs(a), abs(d));
-        int32_t n0 = max(abs(c), abs(d));
-        int32_t m;
-        int32_t n;
-        if ((abs(a) - abs(c)) <= 33 / 65536) {
-            m = 2 * m0;
-        } else {
-            m = m0;
-        }
-        if ((abs(b) - abs(d)) <= 33 / 65536) {
-            n = 2 * n0;
-        } else {
-            n = n0;
-        }
-
-        ms.push_back(m);
-        ns.push_back(n);
+        components.push_back(comp);
     }
 
     int16_t numberOfContours = 0;
@@ -203,50 +200,48 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, uint32_t offset, int16
     vector<uint8_t> flags;
     vector<int16_t> xCoordinatesPush;
     vector<int16_t> yCoordinatesPush;
-    vector<uint32_t> locas = TTFFile::parse(data).getLocas();
-    int contourOffset = xCoordinatesPush.size();
-    for (u_long i = 0; i < glyphIndexs.size(); ++i) {
-        Glyph glyph = Glyph::parseGlyph(data, TTFFile::parse(data).getGlyfOffset() + locas[glyphIndexs[i]]);
-        numberOfContours += glyph.getNumberOfContours();
-        for (uint16_t endPtsOfContour : glyph.getEndPtsOfContours()) {
-            endPtsOfContours.push_back(endPtsOfContour + contourOffset);
+    for (size_t i = 0; i < components.size(); ++i) {
+        const ComponentData& comp = components[i];
+        size_t pointOffset = xCoordinatesPush.size();
+        Glyph glyph = Glyph::parseGlyph(data, locas, glyfTableBase, glyfTableBase + locas[comp.glyphIndex]);
+        numberOfContours = static_cast<int16_t>(glyph.getNumberOfContours() + numberOfContours);
+        for (uint16_t endPt : glyph.getEndPtsOfContours()) {
+            endPtsOfContours.push_back(static_cast<uint16_t>(endPt + pointOffset));
         }
-        for (uint8_t flag : glyph.getFlags()) {
-            flags.push_back(flag);
+        for (uint8_t f : glyph.getFlags()) {
+            flags.push_back(f);
         }
         instructionLength += glyph.getInstructionLength();
-        for (uint8_t instruction : glyph.getInstructions()) {
-            instructions.push_back(instruction);
+        for (uint8_t instr : glyph.getInstructions()) {
+            instructions.push_back(instr);
         }
-        vector<int16_t> xCoordinates = glyph.getXCoordinates();
-        vector<int16_t> yCoordinates = glyph.getYCoordinates();
-        for (u_long j = 0; j < xCoordinates.size(); ++j) {
-            int16_t xPrime = as[i] * xCoordinates[j] + cs[i] * yCoordinates[j] + argument1s[i];
-            int16_t yPrime = bs[i] * xCoordinates[j] + ds[i] * yCoordinates[j] + argument2s[i];
-            xCoordinatesPush.push_back(xPrime);
-            yCoordinatesPush.push_back(yPrime);
-            }
-        contourOffset += xCoordinatesPush.size();
+        const vector<int16_t>& xCoords = glyph.getXCoordinates();
+        const vector<int16_t>& yCoords = glyph.getYCoordinates();
+        for (size_t j = 0; j < xCoords.size(); ++j) {
+            float xPrime = (comp.a * static_cast<float>(xCoords[j])) + (comp.c * static_cast<float>(yCoords[j])) + static_cast<float>(comp.dx);
+            float yPrime = (comp.b * static_cast<float>(xCoords[j])) + (comp.d * static_cast<float>(yCoords[j])) + static_cast<float>(comp.dy);
+            xCoordinatesPush.push_back(static_cast<int16_t>(std::round(xPrime)));
+            yCoordinatesPush.push_back(static_cast<int16_t>(std::round(yPrime)));
+        }
     }
 
-    return Glyph(numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush);
+    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush, 0, 0};
 }
 
 
-    Glyph Glyph::parseGlyph(const vector<char>& data, uint32_t offset) {
-    int pos = offset;
-    int16_t numberOfContours = read2Bytes(data, pos);
-    int16_t xMin = read2Bytes(data, pos);
-    int16_t yMin = read2Bytes(data, pos);
-    int16_t xMax = read2Bytes(data, pos);
-    int16_t yMax = read2Bytes(data, pos);
+Glyph Glyph::parseGlyph(const vector<char>& data, const vector<uint32_t>& locas, uint32_t glyfTableBase, uint32_t offset) { // NOLINT(bugprone-easily-swappable-parameters)
+    int pos = static_cast<int>(offset);
+    auto numberOfContours = static_cast<int16_t>(read2Bytes(data, pos));
+    auto xMin = static_cast<int16_t>(read2Bytes(data, pos));
+    auto yMin = static_cast<int16_t>(read2Bytes(data, pos));
+    auto xMax = static_cast<int16_t>(read2Bytes(data, pos));
+    auto yMax = static_cast<int16_t>(read2Bytes(data, pos));
 
     if (numberOfContours >= 0) {
         return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
-    } else {
-        return Glyph::parseCompoundGlyph(data, pos, xMin, yMin, xMax, yMax);
     }
 
+    return Glyph::parseCompoundGlyph(data, locas, glyfTableBase, pos, xMin, yMin, xMax, yMax);
 }
 
 void Glyph::addPointsBetween() {
@@ -255,7 +250,7 @@ void Glyph::addPointsBetween() {
     vector<uint8_t> newFlags;
     vector<uint16_t> newEndPtsOfContours;
 
-    size_t n = xCoordinates.size();
+    size_t n = xCoordinates.size(); // NOLINT(readability-identifier-length)
     size_t contourIndex = 0;
     size_t contourStartIndex = 0;
 
@@ -271,21 +266,21 @@ void Glyph::addPointsBetween() {
             size_t firstPointIndex = contourStartIndex;
             size_t lastPointIndex = i;
 
-            bool isLastPointOnCurve = (flags[lastPointIndex] & 1);
-            bool isFirstPointOnCurve = (flags[firstPointIndex] & 1);
+            bool isLastPointOnCurve = (flags[lastPointIndex] & 1) != 0;
+            bool isFirstPointOnCurve = (flags[firstPointIndex] & 1) != 0;
 
             if (!isLastPointOnCurve && !isFirstPointOnCurve) {
                 // Add an on-curve point between two off-curve points
-                int16_t midX = (xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2;
-                int16_t midY = (yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2;
+                auto midX = static_cast<int16_t>((xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2);
+                auto midY = static_cast<int16_t>((yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2);
 
                 newXCoordinates.push_back(midX);
                 newYCoordinates.push_back(midY);
                 newFlags.push_back(1); // On-curve point
             } else if (isLastPointOnCurve && isFirstPointOnCurve) {
-                // Add an off-curve point between two on-curve points
-                int16_t midX = (xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2;
-                int16_t midY = (yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2;
+                // Add an off-curve midpoint so straight segments are also driven as Bezier curves
+                auto midX = static_cast<int16_t>((xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2);
+                auto midY = static_cast<int16_t>((yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2);
 
                 newXCoordinates.push_back(midX);
                 newYCoordinates.push_back(midY);
@@ -305,22 +300,22 @@ void Glyph::addPointsBetween() {
             }
 
             // Determine if current and next points are on-curve or off-curve
-            bool isCurrentOnCurve = (flags[i] & 1);
-            bool isNextOnCurve = (flags[nextIndex] & 1);
+            bool isCurrentOnCurve = (flags[i] & 1) != 0;
+            bool isNextOnCurve = (flags[nextIndex] & 1) != 0;
 
             // Add points between current and next points
             if (!isCurrentOnCurve && !isNextOnCurve) {
                 // Add an on-curve point between two off-curve points
-                int16_t midX = (xCoordinates[i] + xCoordinates[nextIndex]) / 2;
-                int16_t midY = (yCoordinates[i] + yCoordinates[nextIndex]) / 2;
+                auto midX = static_cast<int16_t>((xCoordinates[i] + xCoordinates[nextIndex]) / 2);
+                auto midY = static_cast<int16_t>((yCoordinates[i] + yCoordinates[nextIndex]) / 2);
 
                 newXCoordinates.push_back(midX);
                 newYCoordinates.push_back(midY);
                 newFlags.push_back(1); // On-curve point
             } else if (isCurrentOnCurve && isNextOnCurve) {
-                // Add an off-curve point between two on-curve points
-                int16_t midX = (xCoordinates[i] + xCoordinates[nextIndex]) / 2;
-                int16_t midY = (yCoordinates[i] + yCoordinates[nextIndex]) / 2;
+                // Add an off-curve midpoint so straight segments are also driven as Bezier curves
+                auto midX = static_cast<int16_t>((xCoordinates[i] + xCoordinates[nextIndex]) / 2);
+                auto midY = static_cast<int16_t>((yCoordinates[i] + yCoordinates[nextIndex]) / 2);
 
                 newXCoordinates.push_back(midX);
                 newYCoordinates.push_back(midY);
@@ -336,65 +331,23 @@ void Glyph::addPointsBetween() {
     endPtsOfContours = newEndPtsOfContours;
 }
 
-void Glyph::drawSimpleGlyph(SDL_Renderer* renderer, Glyph glyph, int xOffset, int yOffset, double scalingFactor, int screenHeight,int thickness) {
-    vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
-
-    int currentContour = 0;
-    int contourStartIndex = 0;
-
-    vector<int16_t> xCoordinates = glyph.getXCoordinates();
-    vector<int16_t> yCoordinates = glyph.getYCoordinates();
-
-    vector<uint8_t> flags = glyph.getFlags();
-    for (u_long j = 0; j < xCoordinates.size(); ++j) {
-        uint8_t flag = flags[j];
-        if (j > endpoints[currentContour]) {
-            contourStartIndex = endpoints[currentContour] + 1;
-            ++currentContour;
-        }
-        if (flag & 1) { // If the current point is an on-curve point
-            // Adjust the y-coordinates based on screen height and scaling factor
-            SDL_Point point1 = { 
-                static_cast<int>(xCoordinates[j] * scalingFactor + xOffset), 
-                static_cast<int>(screenHeight - (yCoordinates[j] * scalingFactor) + yOffset) 
-            };
-            SDL_Point controlPoint;
-            SDL_Point point2;
-            if (static_cast<uint16_t>(j) != endpoints[currentContour] - 1) {
-                controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
-                controlPoint.y = static_cast<int>(screenHeight - (yCoordinates[j + 1] * scalingFactor) + yOffset);
-                point2.x = static_cast<int>(xCoordinates[j + 2] * scalingFactor + xOffset);
-                point2.y = static_cast<int>(screenHeight - (yCoordinates[j + 2] * scalingFactor) + yOffset);
-            } else {
-                controlPoint.x = static_cast<int>(xCoordinates[j + 1] * scalingFactor + xOffset);
-                controlPoint.y = static_cast<int>(screenHeight - (yCoordinates[j + 1] * scalingFactor) + yOffset);
-                point2.x = static_cast<int>(xCoordinates[contourStartIndex] * scalingFactor + xOffset);
-                point2.y = static_cast<int>(screenHeight - (yCoordinates[contourStartIndex] * scalingFactor) + yOffset);
-            }
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            DrawBezier(renderer, point1, controlPoint, point2);
-            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        }
-    }
-}
-
 void Glyph::printGlyph() {
-    cout << "----------------------------------------------------------------------" << endl;
-    cout << "Number of contours: " << numberOfContours << endl;
-    cout << "xMin: " << xMin << ", yMin: " << yMin << ", xMax: " << xMax << "yMax: " << yMax << endl;
-    cout << "Instruction Length: " << instructionLength << endl;
+    cout << "----------------------------------------------------------------------" << '\n';
+    cout << "Number of contours: " << numberOfContours << '\n';
+    cout << "xMin: " << xMin << ", yMin: " << yMin << ", xMax: " << xMax << "yMax: " << yMax << '\n';
+    cout << "Instruction Length: " << instructionLength << '\n';
 
     cout << "Endpoints of contours: ";
     for (uint16_t endpt : endPtsOfContours) {
         cout << endpt << ", ";
-    } cout << endl;
+    } cout << '\n';
 
     cout << "Endpoints of contours: ";
     for (uint8_t inst : instructions) {
         cout << static_cast<int>(inst) << ", ";
-    } cout << endl;
+    } cout << '\n';
 
-    for (uint16_t i = 0; i < xCoordinates.size(); i++) {
-        cout << "Point " << i << " X: " << xCoordinates[i] << ", Y: " << yCoordinates[i] << ", Flags: " << bitset<8>(flags[i]) << endl;
+    for (size_t i = 0; i < xCoordinates.size(); i++) {
+        cout << "Point " << i << " X: " << xCoordinates[i] << ", Y: " << yCoordinates[i] << ", Flags: " << bitset<8>(flags[i]) << '\n';
     }
 }

@@ -1,11 +1,12 @@
 #pragma once
 #include <vector>
 #include <cstdint>
+#include "FontTypes.h"
 
 class CmapSubtable {
-public: 
+public:
 
-    CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t format, const std::vector<char>& data, uint32_t offset);
+    CmapSubtable(uint16_t platformID, uint16_t encodingID, uint16_t format, const std::vector<char>& data, uint32_t offset); // NOLINT(bugprone-easily-swappable-parameters)
 
     uint32_t getGlyphIndex(uint32_t unicodeValue) const;
     uint16_t getPlatformID() const { return platformID; }
@@ -55,10 +56,11 @@ public:
 
     uint16_t getVersion() const { return version; }
     uint16_t getNumSubtables() const { return numSubtables; }
-    std::vector<CmapSubtable> getSubtables() const { return subtables; }
+    const std::vector<CmapSubtable>& getSubtables() const { return subtables; }
 
 private:
     uint16_t version;
     uint16_t numSubtables;
     std::vector<CmapSubtable> subtables;
+    int activeSubtableIndex = -1;
 };

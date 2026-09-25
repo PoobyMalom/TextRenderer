@@ -1,0 +1,61 @@
+stages:
+  - build
+  - analyze
+
+default:
+  image: ubuntu:22.04
+
+# ── Build ──────────────────────────────────────────────────────────────────────
+
+build:
+  stage: build
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq build-essential libsdl2-dev
+  script:
+    - |
+      SDL2_CFLAGS=$(sdl2-config --cflags)
+      SDL2_LIBS=$(sdl2-config --libs)
+      make CXXFLAGS="-std=c++17 -Wall -Werror -g -D_THREAD_SAFE -Iinclude ${SDL2_CFLAGS} -MMD -MP" \
+           LDFLAGS="${SDL2_LIBS}"
+  artifacts:
+    paths:
+      - main
+    expire_in: 1 hour
+
+# ── Static analysis ────────────────────────────────────────────────────────────
+
+# clang-tidy: catches bug-prone patterns, modernize suggestions, performance
+# allow_failure until existing warnings are triaged
+clang-tidy:
+  stage: analyze
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq clang-tidy libsdl2-dev
+  script:
+    - |
+      SDL2_CFLAGS=$(sdl2-config --cflags)
+      clang-tidy src/*.cpp main.cpp \
+        --checks="bugprone-*,modernize-*,performance-*,readability-*,-readability-magic-numbers,-modernize-use-trailing-return-type" \
+        --header-filter="$(pwd)/(src|include)/.*" \
+        --warnings-as-errors="" \
+        -- \
+        -std=c++17 -Iinclude ${SDL2_CFLAGS}
+  allow_failure: true
+
+# cppcheck: lightweight static analyser, catches UB and logic errors
+cppcheck:
+  stage: analyze
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq cppcheck
+  script:
+    - cppcheck
+        --enable=warning,style,performance,portability
+        --error-exitcode=1
+        --suppress=missingIncludeSystem
+        --suppress=unusedFunction
+        --suppress=useStlAlgorithm
+        -Iinclude
+        src/ main.cpp
+  allow_failure: true

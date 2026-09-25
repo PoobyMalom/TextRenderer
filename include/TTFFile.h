@@ -1,5 +1,4 @@
-#ifndef TTFFILE_H
-#define TTFFILE_H
+#pragma once
 
 #include "TTFHeader.h"
 #include "TTFTable.h"
@@ -8,6 +7,8 @@
 #include "MaxpTable.h"
 #include "LocaTable.h"
 #include "GlyphTable.h"
+#include "Metrics.h"
+#include "FontTypes.h"
 #include <vector>
 #include <string>
 
@@ -15,46 +16,30 @@ class TTFFile {
 public:
     TTFFile(
         TTFHeader header,
-        std::vector<TTFTable*> tables,
         std::vector<uint32_t> locas,
-        HeadTable headTable,
+        const HeadTable& headTable,
         CmapTable cmapTable,
-        MaxpTable maxpTable,
-        uint32_t cmapOffset,
-        uint32_t glyfOffset,
-        uint32_t headOffset,
-        uint32_t locaOffset,
-        uint32_t maxpOffset
+        const MaxpTable& maxpTable,
+        const Metrics& metricsTable
     );
 
-    TTFHeader getHeader() const;
-    std::vector<TTFTable*> getTables() const;
-    std::vector<uint32_t> getLocas() const;
-    HeadTable getHeadTable() const;
-    CmapTable getCmapTable() const;
-    MaxpTable getMaxpTable() const;
-    uint32_t getCmapOffset() const;
-    uint32_t getGlyfOffset() const;
-    uint32_t getHeadOffset() const;
-    uint32_t getLocaOffset() const;
-    uint32_t getMaxpOffset() const;
+    const TTFHeader& getHeader() const;
+    const std::vector<uint32_t>& getLocas() const;
+    const HeadTable& getHeadTable() const;
+    const CmapTable& getCmapTable() const;
+    const MaxpTable& getMaxpTable() const;
+    const Metrics& getMetricsTable() const;
 
     static TTFFile parse(const std::vector<char>& data);
-    Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode);
-    std::vector<Glyph> parseGlyphs(const std::vector<char>& data, std::string letters);
+    Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode, bool insertBezierMidpoints = true);
+    std::vector<Glyph> parseGlyphs(const std::vector<char>& data, const std::string& letters);
 
 private:
     TTFHeader header;
-    std::vector<TTFTable*> tables;
     std::vector<uint32_t> locas;
     HeadTable headTable;
     CmapTable cmapTable;
     MaxpTable maxpTable;
-    uint32_t cmapOffset;
-    uint32_t glyfOffset;
-    uint32_t headOffset;
-    uint32_t locaOffset;
-    uint32_t maxpOffset;
+    Metrics   metricsTable;
 };
 
-#endif // TTFFILE_H

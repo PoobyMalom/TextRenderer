@@ -1,73 +1,79 @@
 # Compiler / flags
 CXX       := g++
 CXXFLAGS  := -std=c++17 -Wall -g -D_THREAD_SAFE \
-             -Iinclude -I/opt/homebrew/include/SDL2 \
+             -Iinclude $(shell sdl2-config --cflags) \
              -MMD -MP
-LDFLAGS   := -L/opt/homebrew/lib -lSDL2
+
+LDFLAGS       := $(shell sdl2-config --libs)
+RELEASE_FLAGS := -O2 -DNDEBUG
 
 # Targets
 TARGET      := main
-TEST_TARGET := test
+TEST_TARGET := test_runner
+DEMO_TARGET := demo
 
-# Build dir for non-main objects/dep files
+# Build dir
 OBJDIR := build
 
 # Sources
 SRCS := main.cpp \
-        src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
+        src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
         src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
-        src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp
+        src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/Renderer.cpp \
+        src/Metrics.cpp
 
-TEST_SRCS := test.cpp \
-             src/MovablePoint.cpp src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
+TEST_SRCS := tests/test_helpers.cpp \
+             src/Helpers.cpp src/TTFHeader.cpp src/TTFTable.cpp \
              src/HeadTable.cpp src/MaxpTable.cpp src/LocaTable.cpp src/CmapTable.cpp \
-             src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp
+             src/GlyphTable.cpp src/TTFFile.cpp src/SDLInitializer.cpp src/Renderer.cpp \
+             src/Metrics.cpp
 
-# Split out main.cpp so its .o/.d stay in project root
+# All objects go under build/
+MAIN_OBJ := $(OBJDIR)/main.o
+MAIN_DEP := $(MAIN_OBJ:.o=.d)
+
 NONMAIN_SRCS := $(filter-out main.cpp,$(SRCS))
-MAIN_OBJ     := main.o
-MAIN_DEP     := $(MAIN_OBJ:.o=.d)
-
-# Objects/Deps for non-main sources go under build/
 OBJS := $(NONMAIN_SRCS:%.cpp=$(OBJDIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
-# For test target: test.o stays in root; rest reuse OBJS in build/
-TEST_MAIN_OBJ := test.o
+TEST_MAIN_OBJ := $(OBJDIR)/tests/test_helpers.o
 TEST_MAIN_DEP := $(TEST_MAIN_OBJ:.o=.d)
-TEST_OBJS     := $(OBJS)        # reuse non-main objs
+TEST_OBJS     := $(OBJS)
 TEST_DEPS     := $(DEPS)
 
-.PHONY: all clean
+DEMO_MAIN_OBJ   := $(OBJDIR)/demo.o
+DEMO_MAIN_DEP   := $(DEMO_MAIN_OBJ:.o=.d)
+DEMO_EXTRA_SRCS := src/DemoPhases.cpp
+DEMO_EXTRA_OBJS := $(DEMO_EXTRA_SRCS:%.cpp=$(OBJDIR)/%.o)
+DEMO_EXTRA_DEPS := $(DEMO_EXTRA_OBJS:.o=.d)
+
+.PHONY: all clean release run run-demo
 all: $(TARGET)
 
-# Link final binaries in project root
 $(TARGET): $(MAIN_OBJ) $(OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(TEST_TARGET): $(TEST_MAIN_OBJ) $(TEST_OBJS)
+	$(CXX) -o $@ $^ $(LDFLAGS) $(shell pkg-config --cflags --libs gtest_main)
+
+$(DEMO_TARGET): $(DEMO_MAIN_OBJ) $(OBJS) $(DEMO_EXTRA_OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-# --- Compile rules ---
-
-# main.cpp -> main.o (and main.d) in root
-$(MAIN_OBJ): main.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# test.cpp -> test.o (and test.d) in root
-$(TEST_MAIN_OBJ): test.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# Any other .cpp -> build/…/.o (and build/…/.d)
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Housekeeping
+release: CXXFLAGS += $(RELEASE_FLAGS)
+release: $(TARGET)
+
+run: $(TARGET)
+	./$(TARGET)
+
+run-demo: $(DEMO_TARGET)
+	./$(DEMO_TARGET)
+
 clean:
-	rm -rf $(OBJDIR) $(TARGET) $(TEST_TARGET) \
-	       $(MAIN_OBJ) $(MAIN_DEP) \
-	       $(TEST_MAIN_OBJ) $(TEST_MAIN_DEP)
+	rm -rf $(OBJDIR) $(TARGET) $(TEST_TARGET) $(DEMO_TARGET)
 
 # Include auto-generated dependency files (ok if missing)
--include $(DEPS) $(MAIN_DEP) $(TEST_DEPS) $(TEST_MAIN_DEP)
+-include $(DEPS) $(MAIN_DEP) $(TEST_DEPS) $(TEST_MAIN_DEP) $(DEMO_MAIN_DEP) $(DEMO_EXTRA_DEPS)
