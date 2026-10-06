@@ -12,7 +12,7 @@ SDL_Point toScreenPoint(const FontTransform& ftrans, const std::vector<int16_t>&
 }
 
 void drawLine(SDL_Renderer* renderer, SDL_Point from, SDL_Point to) { // NOLINT(readability-identifier-length)
-    SDL_RenderDrawLine(renderer, from.x, from.y, to.x, to.y);
+    SDL_RenderLine(renderer, from.x, from.y, to.x, to.y);
 }
 
 // Samples each contour's Bezier segments into straight-line vertices, in
@@ -154,7 +154,7 @@ void drawGlyphPoints(SDL_Renderer* renderer, const Glyph& glyph, const FontTrans
         }
 
         SDL_Point point = toScreenPoint(ftrans, xs, ys, i, xOffset, yOffset);
-        SDL_Rect rect = {point.x - radius, point.y - radius, radius * 2, radius * 2};
+        SDL_FRect rect = {static_cast<float>(point.x - radius), static_cast<float>(point.y - radius), static_cast<float>(radius * 2), static_cast<float>(radius * 2)};
         SDL_RenderFillRect(renderer, &rect);
     }
 }

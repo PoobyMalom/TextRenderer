@@ -3,17 +3,12 @@
 using namespace std;
 
 SDL_Window* initializeWindow(const char* title, int width, int height) {
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
         cerr << "SDL initialization failed: " << SDL_GetError() << '\n';
         return nullptr;
     }
 
-    SDL_Window* window = SDL_CreateWindow(title,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          width,
-                                          height,
-                                          SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow(title, width, height, 0);
     if (window == nullptr) {
         cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << '\n';
         SDL_Quit();
@@ -23,7 +18,7 @@ SDL_Window* initializeWindow(const char* title, int width, int height) {
 }
 
 SDL_Renderer* initializeRenderer(SDL_Window* window) {
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     if (renderer == nullptr) {
         cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << '\n';
         SDL_DestroyWindow(window);

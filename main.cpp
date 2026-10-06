@@ -1,6 +1,6 @@
 #include <iostream>
 #include <algorithm>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <fstream>
 #include <vector>
 #include <string>
@@ -26,7 +26,7 @@ using namespace std;
 
 int thickness = 2;
 
-const float INITIAL_FONT_SIZE = 228.0;
+const float INITIAL_FONT_SIZE = 400.0;
 const int SCREEN_WIDTH  = 1920;
 const int SCREEN_HEIGHT = 1080;
 const int CANVAS_WIDTH  = 10000;
@@ -35,10 +35,10 @@ const int SCROLL_SPEED  = 20;
 
 void handleEvent(const SDL_Event& evt, FontTransform& ftrans, bool& quit, int& viewportX, int& viewportY, // NOLINT(bugprone-easily-swappable-parameters)
                  bool& canvasDirty, int& advanceHeight, int& initialYOffset, int lineHeightUnits, int ascentUnits) {
-    if (evt.type == SDL_QUIT) {
+    if (evt.type == SDL_EVENT_QUIT) {
         quit = true;
-    } else if (evt.type == SDL_KEYDOWN) {
-        switch (evt.key.keysym.sym) {
+    } else if (evt.type == SDL_EVENT_KEY_DOWN) {
+        switch (evt.key.key) {
             case SDLK_UP:
                 viewportY -= SCROLL_SPEED;
                 viewportY = std::max(viewportY, 0);
@@ -74,9 +74,9 @@ void handleEvent(const SDL_Event& evt, FontTransform& ftrans, bool& quit, int& v
             default:
                 break;
         }
-    } else if (evt.type == SDL_MOUSEWHEEL) {
-        viewportX += evt.wheel.x * SCROLL_SPEED;
-        viewportY -= evt.wheel.y * SCROLL_SPEED;
+    } else if (evt.type == SDL_EVENT_MOUSE_WHEEL) {
+        viewportX += static_cast<int>(evt.wheel.x * SCROLL_SPEED);
+        viewportY -= static_cast<int>(evt.wheel.y * SCROLL_SPEED);
         viewportX = std::max(viewportX, 0);
         viewportX = std::min(viewportX, CANVAS_WIDTH - SCREEN_WIDTH);
         viewportY = std::max(viewportY, 0);
@@ -116,9 +116,9 @@ void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture, FontTransfo
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
 
-    SDL_Rect srcRect = {viewportX, viewportY, SCREEN_WIDTH, SCREEN_HEIGHT};
-    SDL_Rect dstRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
-    SDL_RenderCopy(renderer, canvasTexture, &srcRect, &dstRect);
+    SDL_FRect srcRect = {static_cast<float>(viewportX), static_cast<float>(viewportY), static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT)};
+    SDL_FRect dstRect = {0.0F, 0.0F, static_cast<float>(SCREEN_WIDTH), static_cast<float>(SCREEN_HEIGHT)};
+    SDL_RenderTexture(renderer, canvasTexture, &srcRect, &dstRect);
 }
 
 int main(int argc, char* argv[]) {
@@ -158,14 +158,14 @@ int main(int argc, char* argv[]) {
 
     vector<Glyph> glyphs;
     try {
-        const string textToRender = "The unanimous Declaration of the thirteen united States of America and the lazy dog that jumped over that fox or something + - ,.<> hello (*& @#^ !@#%%# {}|}{|})";
+        const string textToRender = "e";
         glyphs = ttfFile.parseGlyphs(buffer, textToRender);
     } catch (const std::exception& err) {
         cerr << "Error parsing glyphs: " << err.what() << '\n';
         return 1;
     }
 
-    Uint32 startTime = SDL_GetTicks();
+    Uint64 startTime = SDL_GetTicks();
     int frameCount = 0;
 
     SDL_Window*   window        = initializeWindow("text_renderer", SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
     SDL_Event evt;
 
     while (!quit) {
-        while (SDL_PollEvent(&evt) != 0) {
+        while (SDL_PollEvent(&evt)) {
             handleEvent(evt, ftrans, quit, viewportX, viewportY, canvasDirty, advanceHeight, initialYOffset, lineHeightUnits, ascentUnits);
         }
 
@@ -188,7 +188,7 @@ int main(int argc, char* argv[]) {
                     canvasDirty, initialYOffset, advanceHeight);
 
         frameCount++;
-        Uint32 elapsedTime = SDL_GetTicks() - startTime;
+        Uint64 elapsedTime = SDL_GetTicks() - startTime;
         if (elapsedTime >= 1000) {
             float fps = static_cast<float>(frameCount) / (static_cast<float>(elapsedTime) / 1000.0F);
             cout << "FPS: " << fps << '\n';

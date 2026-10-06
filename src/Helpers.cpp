@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <cstring>
 #include <array>
+#include <cmath>
+#include <algorithm>
 
 using namespace std;
 
@@ -15,7 +17,7 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
 
     if (isCollinear(point1, controlPoint, point2)) {
         // Draw a straight line if the points are collinear
-        SDL_RenderDrawLine(renderer, point1.x, point1.y, point2.x, point2.y);
+        SDL_RenderLine(renderer, point1.x, point1.y, point2.x, point2.y);
         return;
     }
 
@@ -46,8 +48,86 @@ void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point 
     }
 
     for (int i = 1; i < simplifiedCount; ++i) {
-        SDL_RenderDrawLine(renderer, simplified[i - 1].x, simplified[i - 1].y, simplified[i].x, simplified[i].y);
+        SDL_RenderLine(renderer, simplified[i - 1].x, simplified[i - 1].y, simplified[i].x, simplified[i].y);
     }
+}
+
+void DrawBezierDashed(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2,
+                      float dashLength, float gapLength, float& dashPhase) {
+    const float period = dashLength + gapLength;
+
+    // Flatten the curve finely, then walk the polyline by arc length so dashes
+    // have an even pixel length regardless of how the curve is sampled.
+    const int numSamples = 64;
+    std::array<SDL_FPoint, numSamples + 1> samples;
+    for (int i = 0; i <= numSamples; i++) {
+        float t = static_cast<float>(i) / static_cast<float>(numSamples); // NOLINT(readability-identifier-length)
+        float u = 1.0F - t; // NOLINT(readability-identifier-length)
+        samples[i].x = (u * u * static_cast<float>(point1.x)) + (2 * u * t * static_cast<float>(controlPoint.x)) + (t * t * static_cast<float>(point2.x));
+        samples[i].y = (u * u * static_cast<float>(point1.y)) + (2 * u * t * static_cast<float>(controlPoint.y)) + (t * t * static_cast<float>(point2.y));
+    }
+
+    for (int i = 1; i <= numSamples; ++i) {
+        SDL_FPoint from = samples[i - 1];
+        SDL_FPoint to   = samples[i];
+        float segLength = std::hypot(to.x - from.x, to.y - from.y);
+        if (segLength <= 0.0F) {
+            continue;
+        }
+
+        // Split this sample segment at the points where the pattern flips
+        // between "dash" and "gap". dashPhase always stays in [0, period) and
+        // is snapped exactly onto each boundary, so every pass makes progress.
+        float travelled = 0.0F;
+        while (travelled < segLength) {
+            bool inDash = dashPhase < dashLength;
+            float boundary = inDash ? dashLength : period;
+            float untilFlip = boundary - dashPhase;
+            float remaining = segLength - travelled;
+            bool reachesFlip = untilFlip <= remaining;
+            float step = reachesFlip ? untilFlip : remaining;
+
+            if (inDash) {
+                float startFrac = travelled / segLength;
+                float endFrac   = (travelled + step) / segLength;
+                SDL_RenderLine(renderer,
+                               from.x + ((to.x - from.x) * startFrac), from.y + ((to.y - from.y) * startFrac),
+                               from.x + ((to.x - from.x) * endFrac),   from.y + ((to.y - from.y) * endFrac));
+            }
+
+            if (!reachesFlip) {
+                dashPhase += step;
+                break;
+            }
+            travelled += step;
+            dashPhase = inDash ? dashLength : 0.0F;
+        }
+    }
+}
+
+double signedArea(const std::vector<int16_t>& xCoordinates, const std::vector<int16_t>& yCoordinates,
+                  size_t start, size_t end) { // end is the contour's last index
+    double sum = 0.0;
+    size_t count = end - start + 1;
+    for (size_t k = 0; k < count; ++k) {
+        size_t cur  = start + k;
+        size_t next = start + ((k + 1) % count);
+        sum += static_cast<double>(xCoordinates[cur]) * yCoordinates[next] - static_cast<double>(xCoordinates[next]) * yCoordinates[cur];
+    }
+    return sum / 2.0;
+}
+
+vector<int> calculateWindingDirections(const std::vector<uint16_t>& endPtsOfContours, const std::vector<int16_t>& xCoordinates, const std::vector<int16_t>& yCoordinates) {
+    vector<int> windingDirections;
+    windingDirections.reserve(endPtsOfContours.size());
+
+    size_t start = 0;
+    for (uint16_t end : endPtsOfContours) {
+        // 1 = clockwise (negative area in y-up font units), 0 = counter-clockwise
+        windingDirections.push_back(signedArea(xCoordinates, yCoordinates, start, end) < 0 ? 1 : 0);
+        start = static_cast<size_t>(end) + 1;
+    }
+    return windingDirections;
 }
 
 vector<uint32_t> stringToUnicode(const string& input) {

@@ -15,6 +15,7 @@ include/SDL2/
 main
 test
 demo
+triangulation
 build
 
 # Ignore directories with build artifacts

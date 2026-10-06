@@ -5,7 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <stdexcept>
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 #include "TTFFile.h"
 #include "Metrics.h"
@@ -333,15 +333,15 @@ bool isZoomPhase(Phase phase) {
 }
 
 void handleEvent(const SDL_Event& evt, SDL_Window* window, Phase& phase, int& earmarkStep, bool& quit, DemoContext& ctx) {
-    if (evt.type == SDL_QUIT) {
+    if (evt.type == SDL_EVENT_QUIT) {
         quit = true;
         return;
     }
-    if (evt.type != SDL_KEYDOWN) {
+    if (evt.type != SDL_EVENT_KEY_DOWN) {
         return;
     }
 
-    SDL_Keycode key = evt.key.keysym.sym;
+    SDL_Keycode key = evt.key.key;
 
     if (key == SDLK_ESCAPE) {
         quit = true;
@@ -420,7 +420,7 @@ int main(int argc, char* argv[]) {
     announceCurrent(window, phase, earmarkStep);
 
     while (!quit) {
-        while (SDL_PollEvent(&evt) != 0) {
+        while (SDL_PollEvent(&evt)) {
             handleEvent(evt, window, phase, earmarkStep, quit, ctx);
         }
 
