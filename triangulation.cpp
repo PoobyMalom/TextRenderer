@@ -16,7 +16,7 @@ using namespace std;
 
 namespace {
 
-const float INITIAL_FONT_SIZE = 800.0;
+const float INITIAL_FONT_SIZE = 2000.0;
 const int SCREEN_WIDTH   = 1920;
 const int SCREEN_HEIGHT  = 1080;
 const int CANVAS_WIDTH   = 10000;

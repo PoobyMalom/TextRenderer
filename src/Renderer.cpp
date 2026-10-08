@@ -174,38 +174,110 @@ void drawSimpleGlyphLines(SDL_Renderer* renderer, const Glyph& glyph, FontTransf
 
 void drawTriangulatedGlyph(SDL_Renderer* renderer, const Glyph& glyph, FontTransform& ftrans, int xOffset, int yOffset) {
     vector<uint16_t> endpoints = glyph.getEndPtsOfContours();
-    vector<int> windingDirections = glyph.getWindingDirections();
-
-    int currentContour = 0;
-    int contourStartIndex = 0;
 
     vector<int16_t> xCoordinates = glyph.getXCoordinates();
     vector<int16_t> yCoordinates = glyph.getYCoordinates();
 
     vector<uint8_t> flags = glyph.getFlags();
 
+    auto toVertex = [&](size_t idx) -> Vertex {
+        int px = static_cast<int>(ftrans.toPixels(xCoordinates[idx]) + xOffset);
+        int py = ftrans.toScreenY(yCoordinates[idx], yOffset);
+        return {px, py};
+    };
+
     vector<Contour> contours;
     contours.reserve(endpoints.size());
+    vector<Vertex> extraVertices;        // off-curve control points, inserted alongside the contours
+    vector<Edge> extraConstraints;       // each curve's two legs: on-curve -> control -> on-curve
+    vector<Triangle> expectedCurveTriangles; // the exact (on, control, on) triangle for each curve segment
 
+    int contourStartIndex = 0;
     for (uint16_t endpoint : endpoints) {
-        Contour contour = {};
-        size_t count = endpoint - contourStartIndex + 1;
-        for (size_t k = 0; k < count; ++k) {
-            SDL_Point point1 = {
-                static_cast<int>(ftrans.toPixels(xCoordinates[contourStartIndex + k]) + xOffset),
-                ftrans.toScreenY(yCoordinates[contourStartIndex + k], yOffset)
-            };
-            if ((flags[contourStartIndex + k] & 1) != 0) {
-                contour.push_back({point1.x, point1.y});
+        auto len = static_cast<int>(endpoint) - contourStartIndex + 1;
+        Contour contour;
+
+        for (int k = 0; k < len; ++k) {
+            size_t idx = contourStartIndex + k;
+            if ((flags[idx] & 1) == 0) {
+                continue; // off-curve points are only handled via their on-curve neighbor below
+            }
+
+            Vertex onCurvePoint = toVertex(idx);
+            // Two distinct font-unit coordinates can round to the same
+            // screen pixel at small font sizes (seen in Astloch-Regular's
+            // 'A', where indices 45/46 both land on (58,271) at size 400).
+            // Feeding triangulateConstrained a duplicate point makes it
+            // insert a vertex that's already there -- the new "triangle"
+            // ends up with two identical corners, a zero-area sliver that
+            // renders as a stray spike. Collisions aren't always between
+            // adjacent font points, so check the whole contour so far.
+            bool isDuplicate = false;
+            for (const Vertex& existing : contour) {
+                if (existing.x == onCurvePoint.x && existing.y == onCurvePoint.y) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                contour.push_back(onCurvePoint);
+            }
+
+            // (on, off, on): a curve segment. Its control triangle's chord
+            // (this on-curve point to the next one) is already a constraint
+            // via `contour` above; add the two legs through the control
+            // point too, so the whole control triangle is forced intact.
+            size_t nextIdx = contourStartIndex + ((k + 1) % len);
+            if ((flags[nextIdx] & 1) == 0) {
+                size_t endIdx = contourStartIndex + ((k + 2) % len);
+                Vertex control = toVertex(nextIdx);
+                Vertex curveEnd = toVertex(endIdx);
+
+                extraVertices.push_back(control);
+                extraConstraints.push_back({onCurvePoint, control});
+                extraConstraints.push_back({control, curveEnd});
+                expectedCurveTriangles.push_back({onCurvePoint, control, curveEnd});
             }
         }
+
         contours.push_back(contour);
         contourStartIndex = static_cast<int>(endpoint) + 1;
     }
 
-    vector<Triangle> triangles = triangulateConstrained(contours);
+    vector<Triangle> triangles = triangulateConstrained(contours, extraVertices, extraConstraints, expectedCurveTriangles);
 
-    for (Triangle triangle : triangles) {
-        drawTriangle(renderer, triangle);
+    auto sameVertexSet = [](const Triangle& a, const Triangle& b) -> bool {
+        Vertex av[3] = {a.v0, a.v1, a.v2};
+        Vertex bv[3] = {b.v0, b.v1, b.v2};
+        bool used[3] = {false, false, false};
+        for (const Vertex& vertex : av) {
+            bool found = false;
+            for (int j = 0; j < 3; ++j) {
+                if (!used[j] && vertex == bv[j]) {
+                    used[j] = true;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    for (const Triangle& triangle : triangles) {
+        bool isCurveTriangle = false;
+        for (const Triangle& expected : expectedCurveTriangles) {
+            if (sameVertexSet(triangle, expected)) {
+                isCurveTriangle = true;
+                break;
+            }
+        }
+        if (isCurveTriangle) {
+            drawTriangle(renderer, triangle, {80, 160, 255, 255});
+        } else {
+            drawTriangle(renderer, triangle);
+        }
     }
 }

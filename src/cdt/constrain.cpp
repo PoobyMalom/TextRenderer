@@ -72,6 +72,20 @@ bool sharesSuperTriangleVertex(const Triangle& triangle, const Triangle& superTr
          triangle.v2 == superTriangle.v0 || triangle.v2 == superTriangle.v1 || triangle.v2 == superTriangle.v2;
 }
 
+// Three distinct but exactly-collinear points (a tight run of near-straight
+// contour points, seen e.g. in Eater-Regular's 'X' at y=232) give
+// calculateCircumcircle a degenerate, infinite-radius circle, which it
+// reports as radius -1. inCircumcircle can then never flag that triangle
+// for a legalizing flip, so it survives into the final mesh as a true
+// zero-area sliver -- it contributes no fill, and visually overlaps an edge
+// of its real neighbor like a stray spike. Filtered out at classification
+// time since it's provably contributing nothing.
+bool isDegenerate(const Triangle& triangle) {
+  long long area2 = (static_cast<long long>(triangle.v1.x - triangle.v0.x) * (triangle.v2.y - triangle.v0.y)) -
+                     (static_cast<long long>(triangle.v1.y - triangle.v0.y) * (triangle.v2.x - triangle.v0.x));
+  return area2 == 0;
+}
+
 bool isCrossingCandidate(const Edge& side, const Edge& constraintEdge, const std::unordered_set<Edge, EdgeHash>& constraints) {
   bool sharesEndpoint = side.v0 == constraintEdge.v0 || side.v0 == constraintEdge.v1 ||
                         side.v1 == constraintEdge.v0 || side.v1 == constraintEdge.v1;
@@ -254,6 +268,9 @@ std::vector<Triangle> classifyAndStripExterior(const std::vector<Triangle>& tria
     if (sharesSuperTriangleVertex(triangle, superTriangle)) {
       continue;
     }
+    if (isDegenerate(triangle)) {
+      continue;
+    }
 
     double centroidX = (triangle.v0.x + triangle.v1.x + triangle.v2.x) / 3.0;
     double centroidY = (triangle.v0.y + triangle.v1.y + triangle.v2.y) / 3.0;
@@ -266,9 +283,38 @@ std::vector<Triangle> classifyAndStripExterior(const std::vector<Triangle>& tria
   return result;
 }
 
-std::vector<Triangle> triangulateConstrained(const std::vector<Contour>& contours) {
+namespace {
+
+bool sameVertexSet(const Triangle& a, const Triangle& b) {
+  Vertex av[3] = {a.v0, a.v1, a.v2};
+  Vertex bv[3] = {b.v0, b.v1, b.v2};
+  bool used[3] = {false, false, false};
+  for (const Vertex& vertex : av) {
+    bool found = false;
+    for (int j = 0; j < 3; ++j) {
+      if (!used[j] && vertex == bv[j]) {
+        used[j] = true;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+  return true;
+}
+
+} // namespace
+
+std::vector<Triangle> triangulateConstrained(const std::vector<Contour>& contours, const std::vector<Vertex>& extraVertices,
+                                              const std::vector<Edge>& extraConstraints,
+                                              const std::vector<Triangle>& expectedTriangles) {
   std::vector<Vertex> vertices = flattenContours(contours);
+  vertices.insert(vertices.end(), extraVertices.begin(), extraVertices.end());
+
   std::vector<Edge> constraints = buildConstraintEdges(contours);
+  constraints.insert(constraints.end(), extraConstraints.begin(), extraConstraints.end());
   std::unordered_set<Edge, EdgeHash> constraintSet(constraints.begin(), constraints.end());
 
   Triangle superTriangle{};
@@ -283,5 +329,35 @@ std::vector<Triangle> triangulateConstrained(const std::vector<Contour>& contour
 
   legalizeNonConstraintEdges(triangles, constraintSet, adjacency);
 
-  return classifyAndStripExterior(triangles, contours, superTriangle);
+  std::vector<Triangle> result = classifyAndStripExterior(triangles, contours, superTriangle);
+
+  // Control triangles (an off-curve point plus its two on-curve neighbors)
+  // sit outside the on-curve fill polygon by design, so classifyAndStripExterior
+  // just discarded them like any other exterior triangle. Add back whichever
+  // of expectedTriangles actually exists in the raw mesh, matched by exact
+  // vertex set -- not just "touches one of our extraVertices", since a
+  // control point also ends up with ordinary exterior-fabric triangles that
+  // neither of its two forced legs encloses, and those aren't genuine
+  // control triangles.
+  for (const Triangle& expected : expectedTriangles) {
+    auto match = std::find_if(triangles.begin(), triangles.end(), [&](const Triangle& triangle) {
+                    return sameVertexSet(triangle, expected);
+                  });
+    if (match == triangles.end()) {
+      continue;
+    }
+
+    bool alreadyIncluded = std::find_if(result.begin(), result.end(), [&](const Triangle& kept) {
+                              return sameVertexSet(kept, *match);
+                            }) != result.end();
+    if (!alreadyIncluded) {
+      result.push_back(*match);
+    }
+  }
+
+  return result;
+}
+
+std::vector<Triangle> triangulateConstrained(const std::vector<Contour>& contours) {
+  return triangulateConstrained(contours, {}, {}, {});
 }
