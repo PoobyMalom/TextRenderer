@@ -13,9 +13,10 @@ include/SDL2/
 
 # Ignore the compiled binary
 main
-test
+test_runner
 demo
 triangulation
+benchmark_cdt
 build
 
 # Ignore directories with build artifacts
@@ -39,9 +40,10 @@ test/*.o
 # Ignore macOS-specific files
 .DS_Store
 
-# Ignore generated files from font processing
-fonts/*.ttx
+# Ignore font files (drop your own into fonts/; see fonts/README.md)
 fonts/*.ttf
+fonts/*.otf
+fonts/*.ttx
 
 # Ignore logs and cache files
 *.log

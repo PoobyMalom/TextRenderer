@@ -284,7 +284,7 @@ A C++ library that, given a `.ttf` file and a target pixel size, produces:
 
 **Tooling:**
 - `fonttools` / `ttx` — dump any font to XML to verify your parser against ground
-  truth (you already have `.ttx` files in `src/fonts/`).
+  truth (you already have `.ttx` files in `fonts/`).
 - pybind11 docs + `scikit-build-core` docs — for P1.8 bindings and the wheel.
 
 ### 2.5 Notes, tips, pitfalls
@@ -302,7 +302,7 @@ A C++ library that, given a `.ttf` file and a target pixel size, produces:
   per frame. Don't over-optimize the rasterizer before it's correct.
 - Test corpus: keep `JetBrainsMono` (monospace, `cmap` format 12), plus at least
   one proportional font and one older font that uses `cmap` format 4, in
-  `src/fonts/` (you already have several). Add one font with heavy compound
+  `fonts/` (you already have several). Add one font with heavy compound
   glyphs (accented Latin) and verify.
 
 ---

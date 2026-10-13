@@ -13,10 +13,10 @@ make run                  # build + run main
 make demo && ./demo       # phase-stepping interactive demo (src/DemoPhases.cpp)
 make run-demo
 
-make triangulation && ./triangulation src/fonts/<font>.ttf   # CDT dev/debug harness, see below
-make run-triangulation     # same, defaults to src/fonts/JetBrainsMono-Regular.ttf
+make triangulation && ./triangulation fonts/<font>.ttf   # CDT dev/debug harness, see below
+make run-triangulation     # same, defaults to fonts/JetBrainsMono-Regular.ttf
 
-make benchmark_cdt && ./benchmark_cdt   # times triangulateConstrained() across every font in src/fonts
+make benchmark_cdt && ./benchmark_cdt   # times triangulateConstrained() across every font in fonts
 make run-benchmark
 
 make test_runner && ./test_runner                       # run all tests (gtest)
@@ -52,7 +52,7 @@ A self-contained CDT implementation (ported in from a separate prototype, `~/Del
 3. **Legalization** (`legalizeNonConstraintEdges`): standard Delaunay edge-flip legalization, implemented as a flip worklist (not a repeated full-mesh rescan, same rebuild-cost lesson as step 2).
 4. **Classification** (`classifyAndStripExterior`): even-odd point-in-polygon against the on-curve contour decides inside/outside (handles holes, and handles a contour that pinches inward and briefly touches itself — a dual-graph flood fill cannot distinguish that from a real boundary crossing, which is why this uses point-in-polygon instead). Also strips zero-area degenerate triangles (exactly-collinear points, which make `calculateCircumcircle` return an invalid radius that can never trigger a legalizing flip).
 
-A second `triangulateConstrained()` overload takes extra vertices/constraints/expected-triangles, used to force each quadratic curve's "control triangle" (on-curve point, off-curve control point, on-curve point) to survive into the mesh intact, so it can eventually get its own per-pixel curve test instead of being approximated by a flat chord. **This is active, not-yet-correct work**: it works for simple cases but a full sweep across every glyph in `src/fonts` currently finds on the order of thousands of problems (missing control triangles from constraint-recovery failures under the added constraint load, plus triangle overlaps from off-curve control points that aren't deduplicated against existing points the way on-curve points are). Don't assume this path is verified before building on it further.
+A second `triangulateConstrained()` overload takes extra vertices/constraints/expected-triangles, used to force each quadratic curve's "control triangle" (on-curve point, off-curve control point, on-curve point) to survive into the mesh intact, so it can eventually get its own per-pixel curve test instead of being approximated by a flat chord. **This is active, not-yet-correct work**: it works for simple cases but a full sweep across every glyph in `fonts` currently finds on the order of thousands of problems (missing control triangles from constraint-recovery failures under the added constraint load, plus triangle overlaps from off-curve control points that aren't deduplicated against existing points the way on-curve points are). Don't assume this path is verified before building on it further.
 
-### Known gitignore gap
-`.gitignore` ignores a top-level `fonts/*.ttf` that doesn't exist (fonts actually live in `src/fonts/`, which is not excluded — hence the `.ttf` files are tracked) and lists a `test` binary that doesn't match the actual `test_runner` target name. `test_runner` and `benchmark_cdt` binaries are currently untracked-but-not-ignored; `make clean` removes them either way.
+### Fonts and gitignore
+Font files live in the top-level `fonts/` folder and are gitignored (`fonts/*.ttf`, `*.otf`, `*.ttx`) — each checkout supplies its own; only `fonts/README.md` is tracked. Build outputs (`main`, `demo`, `triangulation`, `test_runner`, `benchmark_cdt`, `build/`) are ignored.

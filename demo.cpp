@@ -22,10 +22,10 @@ const int SCREEN_WIDTH  = 1920;
 const int SCREEN_HEIGHT = 1080;
 const int GLYPH_THICKNESS = 2;
 
-const string DEFAULT_PRIMARY_FONT = "src/fonts/JetBrainsMono-Regular.ttf";
-const string MONO_FONT_PATH       = "src/fonts/JetBrainsMono-Regular.ttf";
-const string PROP_FONT_PATH       = "src/fonts/papyrus.ttf";
-const string TALL_FONT_PATH       = "src/fonts/MonsieurLaDoulaise-Regular.ttf";
+const string DEFAULT_PRIMARY_FONT = "fonts/JetBrainsMono-Regular.ttf";
+const string MONO_FONT_PATH       = "fonts/JetBrainsMono-Regular.ttf";
+const string PROP_FONT_PATH       = "fonts/papyrus.ttf";
+const string TALL_FONT_PATH       = "fonts/MonsieurLaDoulaise-Regular.ttf";
 
 const string SPACING_SAMPLE_TEXT   = "iiiMMMiii";
 const string PARAGRAPH_SAMPLE_LINE = "Jibby quartz pond fig";

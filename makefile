@@ -94,7 +94,7 @@ run-demo: $(DEMO_TARGET)
 	./$(DEMO_TARGET)
 
 run-triangulation: $(TRI_TARGET)
-	./$(TRI_TARGET) src/fonts/JetBrainsMono-Regular.ttf
+	./$(TRI_TARGET) fonts/JetBrainsMono-Regular.ttf
 
 run-benchmark: $(BENCH_TARGET)
 	./$(BENCH_TARGET)

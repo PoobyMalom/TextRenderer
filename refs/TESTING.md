@@ -182,7 +182,7 @@ watch it fail, then make it pass.
 ## Testing decisions to make
 
 - Golden-image tolerance thresholds and how goldens are regenerated/reviewed.
-- Whether to vendor a tiny test font or keep using `src/fonts/*` (the existing
+- Whether to vendor a tiny test font or keep using `fonts/*` (the existing
   `.ttx` files are useful ground truth via fonttools).
 - CTest layout: one binary with filters, or per-module binaries.
 - CI: run goldens headless (pure CPU — no GL needed, which is the point).

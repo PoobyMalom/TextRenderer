@@ -1,6 +1,6 @@
 // Benchmarks the constrained-Delaunay pipeline (the same contour-building +
 // triangulateConstrained() + drawTriangle() path drawTriangulatedGlyph in
-// Renderer.cpp uses) across every font in src/fonts, timing calculation and
+// Renderer.cpp uses) across every font in fonts, timing calculation and
 // render separately per glyph.
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -215,7 +215,7 @@ int main() {
     }
 
     vector<string> fontPaths;
-    for (const auto& entry : std::filesystem::directory_iterator("src/fonts")) {
+    for (const auto& entry : std::filesystem::directory_iterator("fonts")) {
         if (entry.path().extension() == ".ttf") {
             fontPaths.push_back(entry.path().string());
         }
