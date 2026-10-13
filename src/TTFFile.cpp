@@ -48,7 +48,7 @@ Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode, bool inser
     uint16_t glyphIndex = cmapTable.getGlyphIndex(unicode);
 
     if (unicode == 32) {
-        Glyph space = {0, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}, 0, 0};
+        Glyph space = {0, {}, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}, 0, 0};
         space.setAdvanceWidth(metricsTable.getLongHorMetrics()[glyphIndex].advanceWidth);
         return space;
     }

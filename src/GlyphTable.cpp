@@ -10,6 +10,7 @@ using namespace std;
 
 Glyph::Glyph(
     int16_t numberOfContours, // NOLINT(bugprone-easily-swappable-parameters)
+    vector<int> windingDirections,
     FWord xMin,
     FWord yMin, // NOLINT(bugprone-easily-swappable-parameters)
     FWord xMax,
@@ -23,6 +24,7 @@ Glyph::Glyph(
     UFWord advanceWidth,
     FWord leftSideBearing
 ) : numberOfContours(numberOfContours),
+    windingDirections(windingDirections),
     xMin(xMin),
     yMin(yMin),
     xMax(xMax),
@@ -37,6 +39,7 @@ Glyph::Glyph(
     leftSideBearing(leftSideBearing) {}
 
 int16_t Glyph::getNumberOfContours() const { return numberOfContours; }
+const vector<int>& Glyph::getWindingDirections() const { return windingDirections; }
 FWord Glyph::getXMin() const { return xMin; }
 FWord Glyph::getYMin() const { return yMin; }
 FWord Glyph::getXMax() const { return xMax; }
@@ -116,7 +119,9 @@ Glyph Glyph::parseSimpleGlyph(const vector<char>& data, uint32_t offset, int16_t
         yCoordinates.push_back(currentY);
     }
 
-    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates, 0, 0};
+    vector<int> windingDirections = calculateWindingDirections(endPtsOfContours, xCoordinates, yCoordinates);
+
+    return {numberOfContours, windingDirections, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinates, yCoordinates, 0, 0};
 }
 
 Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>& locas, uint32_t glyfTableBase, uint32_t componentDataStart, int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) { // NOLINT(bugprone-easily-swappable-parameters, readability-function-cognitive-complexity)
@@ -225,7 +230,9 @@ Glyph Glyph::parseCompoundGlyph(const vector<char>& data, const vector<uint32_t>
         }
     }
 
-    return {numberOfContours, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush, 0, 0};
+    vector<int> windingDirections = calculateWindingDirections(endPtsOfContours, xCoordinatesPush, yCoordinatesPush);
+
+    return {numberOfContours, windingDirections, xMin, yMin, xMax, yMax, endPtsOfContours, instructionLength, instructions, flags, xCoordinatesPush, yCoordinatesPush, 0, 0};
 }
 
 
@@ -277,14 +284,6 @@ void Glyph::addPointsBetween() {
                 newXCoordinates.push_back(midX);
                 newYCoordinates.push_back(midY);
                 newFlags.push_back(1); // On-curve point
-            } else if (isLastPointOnCurve && isFirstPointOnCurve) {
-                // Add an off-curve midpoint so straight segments are also driven as Bezier curves
-                auto midX = static_cast<int16_t>((xCoordinates[lastPointIndex] + xCoordinates[firstPointIndex]) / 2);
-                auto midY = static_cast<int16_t>((yCoordinates[lastPointIndex] + yCoordinates[firstPointIndex]) / 2);
-
-                newXCoordinates.push_back(midX);
-                newYCoordinates.push_back(midY);
-                newFlags.push_back(0); // Off-curve point
             }
 
             // Move to the next contour
@@ -312,14 +311,6 @@ void Glyph::addPointsBetween() {
                 newXCoordinates.push_back(midX);
                 newYCoordinates.push_back(midY);
                 newFlags.push_back(1); // On-curve point
-            } else if (isCurrentOnCurve && isNextOnCurve) {
-                // Add an off-curve midpoint so straight segments are also driven as Bezier curves
-                auto midX = static_cast<int16_t>((xCoordinates[i] + xCoordinates[nextIndex]) / 2);
-                auto midY = static_cast<int16_t>((yCoordinates[i] + yCoordinates[nextIndex]) / 2);
-
-                newXCoordinates.push_back(midX);
-                newYCoordinates.push_back(midY);
-                newFlags.push_back(0); // Off-curve point
             }
         }
     }

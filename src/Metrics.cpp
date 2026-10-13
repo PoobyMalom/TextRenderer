@@ -1,5 +1,6 @@
 #include "Metrics.h"
 #include "Helpers.h"
+#include <algorithm>
 
 HheaTable HheaTable::parseHheaDirectory(const std::vector<char>& data, uint16_t hheaTableOffset) {
   int pos = hheaTableOffset;
@@ -43,15 +44,26 @@ void Metrics::getMetrics(const std::vector<char>& data, uint16_t hheaTableOffset
   hheaTable = HheaTable::parseHheaDirectory(data, hheaTableOffset);
 
   int pos = hmtxTableOffset;
-  longHorMetrics.reserve(hheaTable.numOfLongHorMetrics);
 
-  for (int i = 0; i < hheaTable.numOfLongHorMetrics; i++) {
+  // numOfLongHorMetrics must never exceed numGlyphs per the TTF spec, but
+  // some fonts in the wild violate this (e.g. CraftyGirls-Regular.ttf reads
+  // 5121 against only 2570 glyphs). Trusting it unconditionally turned a
+  // negative "remaining" count into a huge size_t passed to reserve() below,
+  // crashing with std::length_error -- clamp to both the spec-mandated cap
+  // and to how many bytes are actually left in the buffer so a malformed
+  // font can't make either read run past the end of the data.
+  int longHorMetricCount = std::min<int>(hheaTable.numOfLongHorMetrics, numGlyphs);
+  longHorMetricCount = std::max(0, std::min(longHorMetricCount, static_cast<int>(data.size() - pos) / 4));
+
+  longHorMetrics.reserve(longHorMetricCount);
+  for (int i = 0; i < longHorMetricCount; i++) {
     uint16_t aw = read2Bytes(data, pos);
     int16_t lsb = static_cast<int16_t>(read2Bytes(data, pos));
     longHorMetrics.push_back({aw, lsb});
   };
 
-  int remaining = numGlyphs - hheaTable.numOfLongHorMetrics;
+  int remaining = static_cast<int>(numGlyphs) - longHorMetricCount;
+  remaining = std::max(0, std::min(remaining, static_cast<int>(data.size() - pos) / 2));
   leftSideBearings.reserve(remaining);
 
   for (int i = 0; i < remaining; i++) {

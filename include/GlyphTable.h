@@ -8,6 +8,7 @@ class Glyph {
 public:
     Glyph(
         int16_t numberOfContours,
+        std::vector<int> windingDirections,
         FWord xMin,
         FWord yMin,
         FWord xMax,
@@ -23,6 +24,7 @@ public:
     );
 
     int16_t getNumberOfContours() const;
+    const std::vector<int>& getWindingDirections() const;
     FWord getXMin() const;
     FWord getYMin() const;
     FWord getXMax() const;
@@ -46,6 +48,7 @@ public:
 
 private:
     int16_t numberOfContours;
+    std::vector<int> windingDirections;
     FWord xMin;
     FWord yMin;
     FWord xMax;
