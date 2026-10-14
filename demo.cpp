@@ -420,12 +420,17 @@ int main(int argc, char* argv[]) {
     announceCurrent(window, phase, earmarkStep);
 
     while (!quit) {
-        while (SDL_PollEvent(&evt)) {
-            handleEvent(evt, window, phase, earmarkStep, quit, ctx);
-        }
-
         renderPhase(renderer, phase, earmarkStep, ctx);
         SDL_RenderPresent(renderer);
+
+        // Nothing animates, so sleep until input arrives rather than redrawing
+        // an unchanged frame.
+        if (!SDL_WaitEvent(&evt)) {
+            break;
+        }
+        do {
+            handleEvent(evt, window, phase, earmarkStep, quit, ctx);
+        } while (SDL_PollEvent(&evt));
     }
 
     SDL_DestroyRenderer(renderer);

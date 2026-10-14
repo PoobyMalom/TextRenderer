@@ -38,5 +38,5 @@ struct MaxpTable {
     uint16_t maxSizeOfInstructions;
     uint16_t maxComponentDepth;
 
-    static MaxpTable parseMaxpDirectory(const std::vector<char>& data, uint16_t maxpTableOffset);
+    static MaxpTable parseMaxpDirectory(const std::vector<char>& data, uint32_t maxpTableOffset);
 };

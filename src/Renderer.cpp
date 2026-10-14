@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Helpers.h"
 #include "cdt/constrain.h"
 #include "cdt/draw.h"
 #include <algorithm>
@@ -275,7 +276,16 @@ void drawTriangulatedGlyph(SDL_Renderer* renderer, const Glyph& glyph, FontTrans
             }
         }
         if (isCurveTriangle) {
-            drawTriangle(renderer, triangle, {80, 160, 255, 255});
+            const Triangle* matched = nullptr;
+            for (const Triangle& expected : expectedCurveTriangles) {
+                if (sameVertexSet(triangle, expected)) { matched = &expected; break; }
+            }
+            if (matched != nullptr) {
+                drawTriangle(renderer, triangle, calculateWindingDirection(*matched)
+                                ? SDL_Color{255, 0, 0, 255} : SDL_Color{80, 160, 255, 255});
+            } else {
+                drawTriangle(renderer, triangle);
+            }
         } else {
             drawTriangle(renderer, triangle);
         }

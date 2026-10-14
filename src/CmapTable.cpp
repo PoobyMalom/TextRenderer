@@ -106,6 +106,13 @@ CmapTable::CmapTable(const std::vector<char>& data, uint32_t offset){
         uint16_t encodingID = read2Bytes(data, pos);
         uint32_t subtableOffset = read4Bytes(data, pos);
         uint16_t format = convertEndian16(*reinterpret_cast<const uint16_t*>(&data[offset + subtableOffset]));
+        // Fonts commonly carry extra subtables we don't parse (e.g. format 6
+        // for legacy Mac encodings, format 14 for variation selectors)
+        // alongside a supported format 4/12 one -- skip them rather than
+        // rejecting the whole font.
+        if (format != 0 && format != 4 && format != 12) {
+            continue;
+        }
         subtables.emplace_back(platformID, encodingID, format, data, offset + subtableOffset);
     }
 

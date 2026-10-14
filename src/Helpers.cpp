@@ -130,6 +130,12 @@ vector<int> calculateWindingDirections(const std::vector<uint16_t>& endPtsOfCont
     return windingDirections;
 }
 
+int calculateWindingDirection(const Triangle& triangle) {
+    std::vector<int16_t> xCoordinates = {triangle.v0.x, triangle.v1.x, triangle.v2.x};
+    std::vector<int16_t> yCoordinates = {triangle.v0.y, triangle.v1.y, triangle.v2.y};
+    return signedArea(xCoordinates, yCoordinates, 0, 2) < 0 ? 1 : 0;
+}
+
 vector<uint32_t> stringToUnicode(const string& input) {
     vector<uint32_t> unicodePoints;
     size_t length = input.size();

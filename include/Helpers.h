@@ -5,6 +5,7 @@
 #include <string>
 #include <tuple>
 #include "FontTypes.h"
+#include "triangle.h"
 
 void DrawBezier(SDL_Renderer* renderer, const SDL_Point point1, const SDL_Point controlPoint, const SDL_Point point2);
 // Draws the same curve as DrawBezier, but as a dashed line: dashLength pixels
@@ -15,6 +16,7 @@ void DrawBezierDashed(SDL_Renderer* renderer, const SDL_Point point1, const SDL_
                       float dashLength, float gapLength, float& dashPhase);
 double signedArea(const std::vector<int16_t>& xs, const std::vector<int16_t>& ys, size_t start, size_t end);
 std::vector<int> calculateWindingDirections(const std::vector<uint16_t>& endPtsOfContours, const std::vector<int16_t>& xCoordinates, const std::vector<int16_t>& yCoordinates);
+int calculateWindingDirection(const Triangle& triangle);
 std::vector<uint32_t> stringToUnicode(const std::string& input);
 uint32_t findUnicodevector(const std::vector<uint32_t>& startCharCodes, const std::vector<uint32_t>& endCharCodes, const std::vector<uint32_t>& startGlyphCodes, uint16_t value);
 

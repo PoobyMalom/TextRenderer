@@ -25,6 +25,11 @@ SDL_Renderer* initializeRenderer(SDL_Window* window) {
         SDL_Quit();
         return nullptr;
     }
+    // Cap presents at the display refresh rate; uncapped, an unchanged frame
+    // was being redrawn thousands of times a second.
+    if (!SDL_SetRenderVSync(renderer, 1)) {
+        cerr << "VSync unavailable, rendering uncapped: " << SDL_GetError() << '\n';
+    }
     return renderer;
 }
 

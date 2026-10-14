@@ -49,7 +49,7 @@ Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode, bool inser
 
     if (unicode == 32) {
         Glyph space = {0, {}, 0, 0, 0, 0, {}, 0, {}, {}, {}, {}, 0, 0};
-        space.setAdvanceWidth(metricsTable.getLongHorMetrics()[glyphIndex].advanceWidth);
+        space.setAdvanceWidth(metricsTable.getGlyphMetric(glyphIndex).advanceWidth);
         return space;
     }
 
@@ -74,8 +74,9 @@ Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode, bool inser
         throw out_of_range("Glyph offset out of range");
     }
     Glyph parsedGlyph = Glyph::parseGlyph(data, locas, glyfOffset, glyphOffset);
-    parsedGlyph.setAdvanceWidth(metricsTable.getLongHorMetrics()[glyphIndex].advanceWidth);
-    parsedGlyph.setLeftSideBearing(metricsTable.getLongHorMetrics()[glyphIndex].leftSideBearing);
+    longHorMetric metric = metricsTable.getGlyphMetric(glyphIndex);
+    parsedGlyph.setAdvanceWidth(metric.advanceWidth);
+    parsedGlyph.setLeftSideBearing(metric.leftSideBearing);
     if (insertBezierMidpoints) {
         parsedGlyph.addPointsBetween();
     }

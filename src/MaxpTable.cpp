@@ -2,7 +2,7 @@
 #include "Helpers.h"
 #include <cstring>
 
-MaxpTable MaxpTable::parseMaxpDirectory(const std::vector<char>& data, uint16_t maxpTableOffset) {
+MaxpTable MaxpTable::parseMaxpDirectory(const std::vector<char>& data, uint32_t maxpTableOffset) {
     int pos = maxpTableOffset;
     uint32_t version = read4Bytes(data, pos);
     uint16_t numGlyphs = read2Bytes(data, pos);

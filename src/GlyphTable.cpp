@@ -245,10 +245,77 @@ Glyph Glyph::parseGlyph(const vector<char>& data, const vector<uint32_t>& locas,
     auto yMax = static_cast<int16_t>(read2Bytes(data, pos));
 
     if (numberOfContours >= 0) {
-        return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
+        Glyph glyph = Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
     }
 
-    return Glyph::parseCompoundGlyph(data, locas, glyfTableBase, pos, xMin, yMin, xMax, yMax);
+    Glyph glyph = Glyph::parseCompoundGlyph(data, locas, glyfTableBase, pos, xMin, yMin, xMax, yMax);
+
+    auto toVertex = [&](size_t idx) -> Vertex {
+        int px = static_cast<int>(ftrans.toPixels(xCoordinates[idx]) + xOffset);
+        int py = ftrans.toScreenY(yCoordinates[idx], yOffset);
+        return {px, py};
+    };
+
+    vector<Contour> contours;
+    contours.reserve(endpoints.size());
+    vector<Vertex> extraVertices;        // off-curve control points, inserted alongside the contours
+    vector<Edge> extraConstraints;       // each curve's two legs: on-curve -> control -> on-curve
+    vector<Triangle> expectedCurveTriangles; // the exact (on, control, on) triangle for each curve segment
+
+    int contourStartIndex = 0;
+    for (uint16_t endpoint : endpoints) {
+        auto len = static_cast<int>(endpoint) - contourStartIndex + 1;
+        Contour contour;
+
+        for (int k = 0; k < len; ++k) {
+            size_t idx = contourStartIndex + k;
+            if ((flags[idx] & 1) == 0) {
+                continue; // off-curve points are only handled via their on-curve neighbor below
+            }
+
+            Vertex onCurvePoint = toVertex(idx);
+            // Two distinct font-unit coordinates can round to the same
+            // screen pixel at small font sizes (seen in Astloch-Regular's
+            // 'A', where indices 45/46 both land on (58,271) at size 400).
+            // Feeding triangulateConstrained a duplicate point makes it
+            // insert a vertex that's already there -- the new "triangle"
+            // ends up with two identical corners, a zero-area sliver that
+            // renders as a stray spike. Collisions aren't always between
+            // adjacent font points, so check the whole contour so far.
+            bool isDuplicate = false;
+            for (const Vertex& existing : contour) {
+                if (existing.x == onCurvePoint.x && existing.y == onCurvePoint.y) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                contour.push_back(onCurvePoint);
+            }
+
+            // (on, off, on): a curve segment. Its control triangle's chord
+            // (this on-curve point to the next one) is already a constraint
+            // via `contour` above; add the two legs through the control
+            // point too, so the whole control triangle is forced intact.
+            size_t nextIdx = contourStartIndex + ((k + 1) % len);
+            if ((flags[nextIdx] & 1) == 0) {
+                size_t endIdx = contourStartIndex + ((k + 2) % len);
+                Vertex control = toVertex(nextIdx);
+                Vertex curveEnd = toVertex(endIdx);
+
+                extraVertices.push_back(control);
+                extraConstraints.push_back({onCurvePoint, control});
+                extraConstraints.push_back({control, curveEnd});
+                expectedCurveTriangles.push_back({onCurvePoint, control, curveEnd});
+            }
+        }
+
+        contours.push_back(contour);
+        contourStartIndex = static_cast<int>(endpoint) + 1;
+    }
+
+    vector<Triangle> triangles = triangulateConstrained(contours, extraVertices, extraConstraints, expectedCurveTriangles);
+
 }
 
 void Glyph::addPointsBetween() {

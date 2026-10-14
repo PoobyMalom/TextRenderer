@@ -2,7 +2,7 @@
 #include "Helpers.h"
 #include <algorithm>
 
-HheaTable HheaTable::parseHheaDirectory(const std::vector<char>& data, uint16_t hheaTableOffset) {
+HheaTable HheaTable::parseHheaDirectory(const std::vector<char>& data, uint32_t hheaTableOffset) {
   int pos = hheaTableOffset;
   uint32_t version = read4Bytes(data, pos);
   int16_t  ascent = static_cast<int16_t>(read2Bytes(data, pos));
@@ -40,7 +40,15 @@ const HheaTable& Metrics::getHheaTable() const { return hheaTable; }
 const std::vector<longHorMetric>& Metrics::getLongHorMetrics() const { return longHorMetrics; }
 const std::vector<int16_t>& Metrics::getLeftSideBearings() const { return leftSideBearings; }
 
-void Metrics::getMetrics(const std::vector<char>& data, uint16_t hheaTableOffset, uint16_t hmtxTableOffset, uint16_t numGlyphs) {
+longHorMetric Metrics::getGlyphMetric(uint32_t glyphIndex) const {
+  if (glyphIndex < longHorMetrics.size()) return longHorMetrics[glyphIndex];
+  if (longHorMetrics.empty()) return {0, 0};
+  size_t lsbIndex = glyphIndex - longHorMetrics.size();
+  int16_t lsb = lsbIndex < leftSideBearings.size() ? leftSideBearings[lsbIndex] : 0;
+  return {longHorMetrics.back().advanceWidth, lsb};
+}
+
+void Metrics::getMetrics(const std::vector<char>& data, uint32_t hheaTableOffset, uint32_t hmtxTableOffset, uint16_t numGlyphs) {
   hheaTable = HheaTable::parseHheaDirectory(data, hheaTableOffset);
 
   int pos = hmtxTableOffset;

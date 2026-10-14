@@ -165,9 +165,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    Uint64 startTime = SDL_GetTicks();
-    int frameCount = 0;
-
     SDL_Window*   window        = initializeWindow("text_renderer", SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_Renderer* renderer      = initializeRenderer(window);
     SDL_Texture*  canvasTexture = initializeTexture(renderer, window, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -180,23 +177,18 @@ int main(int argc, char* argv[]) {
     SDL_Event evt;
 
     while (!quit) {
-        while (SDL_PollEvent(&evt)) {
-            handleEvent(evt, ftrans, quit, viewportX, viewportY, canvasDirty, advanceHeight, initialYOffset, lineHeightUnits, ascentUnits);
-        }
-
         renderFrame(renderer, canvasTexture, ftrans, glyphs, viewportX, viewportY,
                     canvasDirty, initialYOffset, advanceHeight);
-
-        frameCount++;
-        Uint64 elapsedTime = SDL_GetTicks() - startTime;
-        if (elapsedTime >= 1000) {
-            float fps = static_cast<float>(frameCount) / (static_cast<float>(elapsedTime) / 1000.0F);
-            cout << "FPS: " << fps << '\n';
-            frameCount = 0;
-            startTime = SDL_GetTicks();
-        }
-
         SDL_RenderPresent(renderer);
+
+        // Nothing animates, so sleep until input arrives rather than redrawing
+        // an unchanged frame.
+        if (!SDL_WaitEvent(&evt)) {
+            break;
+        }
+        do {
+            handleEvent(evt, ftrans, quit, viewportX, viewportY, canvasDirty, advanceHeight, initialYOffset, lineHeightUnits, ascentUnits);
+        } while (SDL_PollEvent(&evt));
     }
 
     SDL_DestroyTexture(canvasTexture);

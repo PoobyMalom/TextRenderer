@@ -14,14 +14,14 @@ C++17, built with a single root `makefile` (g++, SDL3 + gtest via `pkg-config`).
 make && make run                                 # main: production glyph renderer
 make demo && ./demo                              # phase-stepping interactive demo
 make triangulation && ./triangulation fonts/<font>.ttf   # CDT dev/debug harness (hotkeys 1-9)
-make benchmark_cdt && ./benchmark_cdt            # times triangulateConstrained() across every font in fonts
+make benchmark_cdt && ./benchmark_cdt [dir]      # times triangulateConstrained() across every .ttf in dir (default: fonts)
 make test_runner && ./test_runner                # all tests (gtest)
 ./test_runner --gtest_filter=SuiteName.TestName  # single test
 make clean                                       # make does not track flag changes, only mtimes --
                                                   # run this after editing CXXFLAGS or it'll silently relink stale objects
 ```
 
-Five binaries, five entry points (`main.cpp`, `demo.cpp`, `triangulation.cpp`, `tests/test_helpers.cpp`, `benchmark_cdt.cpp`), sharing the core parsing/rendering objects. Only `triangulation` and `benchmark_cdt` link the `src/cdt/` CDT library.
+Five binaries, five entry points (`main.cpp`, `demo.cpp`, `triangulation.cpp`, `tests/test_helpers.cpp`, `benchmark_cdt.cpp`), sharing the core parsing/rendering objects. All of them also link the `src/cdt/` CDT library, since `Renderer.cpp` (`drawTriangulatedGlyph`) depends on it.
 
 ## Architecture
 

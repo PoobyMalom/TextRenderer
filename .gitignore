@@ -1,4 +1,6 @@
 include/SDL2/
+benchmark_cdt
+
 
 # Ignore object files, binary files, and other build artifacts
 *.o
@@ -10,6 +12,7 @@ include/SDL2/
 *.out
 *.elf
 *.app
+*.csv
 
 # Ignore the compiled binary
 main

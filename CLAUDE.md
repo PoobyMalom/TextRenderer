@@ -16,8 +16,8 @@ make run-demo
 make triangulation && ./triangulation fonts/<font>.ttf   # CDT dev/debug harness, see below
 make run-triangulation     # same, defaults to fonts/JetBrainsMono-Regular.ttf
 
-make benchmark_cdt && ./benchmark_cdt   # times triangulateConstrained() across every font in fonts
-make run-benchmark
+make benchmark_cdt && ./benchmark_cdt [dir]   # times triangulateConstrained() across every .ttf in dir (default: fonts)
+make run-benchmark         # FONTS=<dir> to pick the folder
 
 make test_runner && ./test_runner                       # run all tests (gtest)
 ./test_runner --gtest_filter=SuiteName.TestName          # run a single test
@@ -27,7 +27,7 @@ make clean                 # removes build/ and all binaries
 make release                # adds -DNDEBUG on top (CXXFLAGS already has -O2)
 ```
 
-Each of `main`, `demo`, `triangulation`, `test_runner`, and `benchmark_cdt` is its own binary with its own entry point (`main.cpp`, `demo.cpp`, `triangulation.cpp`, `tests/test_helpers.cpp`, `benchmark_cdt.cpp`) but shares the core parsing/rendering object files (`$(OBJS)` in the makefile). Only `triangulation` and `benchmark_cdt` additionally link the `src/cdt/` constrained-Delaunay library (`$(CDT_OBJS)`) — `main`/`demo`/`test_runner` do not depend on it.
+Each of `main`, `demo`, `triangulation`, `test_runner`, and `benchmark_cdt` is its own binary with its own entry point (`main.cpp`, `demo.cpp`, `triangulation.cpp`, `tests/test_helpers.cpp`, `benchmark_cdt.cpp`) but shares the core parsing/rendering object files (`$(OBJS)` in the makefile). All five also link the `src/cdt/` constrained-Delaunay library (`$(CDT_OBJS)`), because `Renderer.cpp`'s `drawTriangulatedGlyph` depends on it.
 
 `make` does not track flag changes, only file mtimes — if you change `CXXFLAGS` or switch compilers, run `make clean` first or stale objects will silently relink.
 
@@ -45,7 +45,7 @@ Font data is Y-up in abstract "font units" (`unitsPerEm`-scaled); screen/pixel s
 Several draw functions share the same traversal pattern: walk each contour's points, and for every on-curve point check whether the *next* point is on-curve (straight edge) or off-curve (on, off, on = one quadratic Bézier segment, drawn via `DrawBezier`/`DrawBezierDashed` in `Helpers.cpp`). `drawSimpleGlyph` is the real outline; `drawSimpleGlyphDashed` is a debug view that also colors each segment by the contour's winding direction; `drawSimpleGlyphLines` draws straight chords between points for comparison; `drawTriangulatedGlyph` feeds the glyph through the CDT library (below) and fills it with triangles instead of outlining it.
 
 ### Constrained Delaunay triangulation (`include/cdt/`, `src/cdt/`)
-A self-contained CDT implementation (ported in from a separate prototype, `~/DelaunayTest`) used to fill a glyph's outline with triangles. Only `triangulation.cpp` and `benchmark_cdt.cpp` link against it. Entry point is `triangulateConstrained()` in `constrain.cpp`:
+A self-contained CDT implementation (ported in from a separate prototype, `~/DelaunayTest`) used to fill a glyph's outline with triangles (`drawTriangulatedGlyph`, plus `triangulation.cpp` and `benchmark_cdt.cpp` directly). Entry point is `triangulateConstrained()` in `constrain.cpp`:
 
 1. **Insertion** (`triangulate.cpp`): incremental Bowyer–Watson insertion of all contour points into a padded super-triangle.
 2. **Constraint recovery** (`recoverConstraintEdge`): forces each contour edge into the mesh via diagonal flips. Uses an `EdgeAdjacency` edge→triangle map (`adjacency.h`) that's updated incrementally per flip, not rebuilt from scratch — rebuilding per-flip was the original design and was a major performance bottleneck (see `git log` around the CDT benchmark work for the before/after numbers).

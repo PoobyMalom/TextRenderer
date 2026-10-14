@@ -13,6 +13,8 @@ TEST_TARGET := test_runner
 DEMO_TARGET := demo
 TRI_TARGET  := triangulation
 BENCH_TARGET := benchmark_cdt
+# Font folder for run-benchmark (make run-benchmark FONTS=<dir>)
+FONTS ?= fonts
 
 # Build dir
 OBJDIR := build
@@ -65,13 +67,13 @@ BENCH_MAIN_DEP := $(BENCH_MAIN_OBJ:.o=.d)
 .PHONY: all clean release run run-demo run-triangulation run-benchmark
 all: $(TARGET)
 
-$(TARGET): $(MAIN_OBJ) $(OBJS)
+$(TARGET): $(MAIN_OBJ) $(OBJS) $(CDT_OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-$(TEST_TARGET): $(TEST_MAIN_OBJ) $(TEST_OBJS)
+$(TEST_TARGET): $(TEST_MAIN_OBJ) $(TEST_OBJS) $(CDT_OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS) $(shell pkg-config --cflags --libs gtest_main)
 
-$(DEMO_TARGET): $(DEMO_MAIN_OBJ) $(OBJS) $(DEMO_EXTRA_OBJS)
+$(DEMO_TARGET): $(DEMO_MAIN_OBJ) $(OBJS) $(DEMO_EXTRA_OBJS) $(CDT_OBJS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
 $(TRI_TARGET): $(TRI_MAIN_OBJ) $(OBJS) $(CDT_OBJS)
@@ -97,7 +99,7 @@ run-triangulation: $(TRI_TARGET)
 	./$(TRI_TARGET) fonts/JetBrainsMono-Regular.ttf
 
 run-benchmark: $(BENCH_TARGET)
-	./$(BENCH_TARGET)
+	./$(BENCH_TARGET) $(FONTS)
 
 clean:
 	rm -rf $(OBJDIR) $(TARGET) $(TEST_TARGET) $(DEMO_TARGET) $(TRI_TARGET) $(BENCH_TARGET)

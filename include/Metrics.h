@@ -18,7 +18,7 @@ struct HheaTable {
   int16_t  metricDataFormat;
   uint16_t numOfLongHorMetrics;
 
-  static HheaTable parseHheaDirectory(const std::vector<char>& data, uint16_t hheaTableOffset);
+  static HheaTable parseHheaDirectory(const std::vector<char>& data, uint32_t hheaTableOffset);
 };
 
 struct longHorMetric {
@@ -33,8 +33,11 @@ public:
   const HheaTable& getHheaTable() const;
   const std::vector<longHorMetric>& getLongHorMetrics() const;
   const std::vector<int16_t>& getLeftSideBearings() const;
+  // Metrics for one glyph. Glyphs past numOfLongHorMetrics share the last
+  // advance width and take their lsb from leftSideBearings, per the hmtx spec.
+  longHorMetric getGlyphMetric(uint32_t glyphIndex) const;
 
-  void getMetrics(const std::vector<char>& data, uint16_t hheaTableOffset, uint16_t hmtxTableOffset, uint16_t numGlyphs);
+  void getMetrics(const std::vector<char>& data, uint32_t hheaTableOffset, uint32_t hmtxTableOffset, uint16_t numGlyphs);
 
 private:
   HheaTable hheaTable;

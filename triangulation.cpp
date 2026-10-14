@@ -218,7 +218,6 @@ void drawGlyph(SDL_Renderer* renderer, Mode mode, const Glyph& glyph, FontTransf
         case Mode::CombinedTriangulated:
             drawTriangulatedGlyph(renderer, glyph, ftrans, xOffset, yOffset);
             drawSimpleGlyphDashed(renderer, glyph, ftrans, xOffset, yOffset, GLYPH_THICKNESS);
-            drawSimpleGlyphLines(renderer, glyph, ftrans, xOffset, yOffset);
             drawOnCurvePoints(renderer, glyph, ftrans, xOffset, yOffset);
             drawOffCurvePoints(renderer, glyph, ftrans, xOffset, yOffset);
             break;
@@ -296,7 +295,7 @@ int main(int argc, char* argv[]) {
 
     vector<Glyph> glyphs;
     try {
-        const string textToRender = "eat";
+        const string textToRender = "feat";
         glyphs = ttfFile.parseGlyphs(buffer, textToRender);
     } catch (const std::exception& err) {
         cerr << "Error parsing glyphs: " << err.what() << '\n';
@@ -312,12 +311,17 @@ int main(int argc, char* argv[]) {
 
     SDL_Event evt;
     while (!view.quit) {
-        while (SDL_PollEvent(&evt)) {
-            handleEvent(evt, window, view);
-        }
-
         renderFrame(renderer, canvasTexture, view, glyphs);
         SDL_RenderPresent(renderer);
+
+        // Nothing animates, so sleep until input arrives rather than redrawing
+        // an unchanged frame.
+        if (!SDL_WaitEvent(&evt)) {
+            break;
+        }
+        do {
+            handleEvent(evt, window, view);
+        } while (SDL_PollEvent(&evt));
     }
 
     SDL_DestroyTexture(canvasTexture);

@@ -2,6 +2,7 @@
 #include "TTFTable.h"
 #include "Helpers.h"
 #include "FontTypes.h"
+#include "cdt/draw.h"
 #include <vector>
 
 class Glyph {
@@ -61,6 +62,8 @@ private:
     std::vector<int16_t> yCoordinates;
     UFWord advanceWidth;
     FWord leftSideBearing;
+
+    std::vector<Triangle> triangles;
 
     static uint16_t convertEndian16(uint16_t value);
     static uint32_t convertEndian32(uint32_t value);

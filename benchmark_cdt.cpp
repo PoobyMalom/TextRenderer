@@ -1,7 +1,8 @@
 // Benchmarks the constrained-Delaunay pipeline (the same contour-building +
 // triangulateConstrained() + drawTriangle() path drawTriangulatedGlyph in
-// Renderer.cpp uses) across every font in fonts, timing calculation and
-// render separately per glyph.
+// Renderer.cpp uses) across every .ttf in a folder (default: fonts), timing
+// calculation and render separately per glyph.
+// Usage: ./benchmark_cdt [font-folder]
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <chrono>
@@ -197,7 +198,17 @@ void printFontRow(const FontResult& font) {
 
 } // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc > 2) {
+        cerr << "Usage: ./benchmark_cdt [font-folder]\n";
+        return 1;
+    }
+    const std::filesystem::path fontDir = argc == 2 ? argv[1] : "fonts";
+    if (!std::filesystem::is_directory(fontDir)) {
+        cerr << "Not a directory: " << fontDir.string() << '\n';
+        return 1;
+    }
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         cerr << "SDL initialization failed: " << SDL_GetError() << '\n';
         return 1;
@@ -215,7 +226,7 @@ int main() {
     }
 
     vector<string> fontPaths;
-    for (const auto& entry : std::filesystem::directory_iterator("fonts")) {
+    for (const auto& entry : std::filesystem::directory_iterator(fontDir)) {
         if (entry.path().extension() == ".ttf") {
             fontPaths.push_back(entry.path().string());
         }
@@ -223,7 +234,8 @@ int main() {
     std::sort(fontPaths.begin(), fontPaths.end());
 
     cout << "Constrained Delaunay triangulation benchmark -- " << TEST_CHARS.size()
-         << " test characters per font, " << fontPaths.size() << " fonts\n\n";
+         << " test characters per font, " << fontPaths.size() << " fonts in "
+         << fontDir.string() << "\n\n";
 
     vector<FontResult> results;
     for (const string& path : fontPaths) {
