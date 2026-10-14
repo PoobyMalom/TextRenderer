@@ -1,6 +1,9 @@
 #include "GlyphTable.h"
 #include "Helpers.h"
 #include "TTFHeader.h"
+#include "cdt/draw.h"
+#include "cdt/contour.h"
+#include "cdt/constrain.h"
 #include <vector>
 #include <tuple>
 #include <iostream>
@@ -245,77 +248,10 @@ Glyph Glyph::parseGlyph(const vector<char>& data, const vector<uint32_t>& locas,
     auto yMax = static_cast<int16_t>(read2Bytes(data, pos));
 
     if (numberOfContours >= 0) {
-        Glyph glyph = Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
+        return Glyph::parseSimpleGlyph(data, pos, numberOfContours, xMin, yMin, xMax, yMax);
     }
 
-    Glyph glyph = Glyph::parseCompoundGlyph(data, locas, glyfTableBase, pos, xMin, yMin, xMax, yMax);
-
-    auto toVertex = [&](size_t idx) -> Vertex {
-        int px = static_cast<int>(ftrans.toPixels(xCoordinates[idx]) + xOffset);
-        int py = ftrans.toScreenY(yCoordinates[idx], yOffset);
-        return {px, py};
-    };
-
-    vector<Contour> contours;
-    contours.reserve(endpoints.size());
-    vector<Vertex> extraVertices;        // off-curve control points, inserted alongside the contours
-    vector<Edge> extraConstraints;       // each curve's two legs: on-curve -> control -> on-curve
-    vector<Triangle> expectedCurveTriangles; // the exact (on, control, on) triangle for each curve segment
-
-    int contourStartIndex = 0;
-    for (uint16_t endpoint : endpoints) {
-        auto len = static_cast<int>(endpoint) - contourStartIndex + 1;
-        Contour contour;
-
-        for (int k = 0; k < len; ++k) {
-            size_t idx = contourStartIndex + k;
-            if ((flags[idx] & 1) == 0) {
-                continue; // off-curve points are only handled via their on-curve neighbor below
-            }
-
-            Vertex onCurvePoint = toVertex(idx);
-            // Two distinct font-unit coordinates can round to the same
-            // screen pixel at small font sizes (seen in Astloch-Regular's
-            // 'A', where indices 45/46 both land on (58,271) at size 400).
-            // Feeding triangulateConstrained a duplicate point makes it
-            // insert a vertex that's already there -- the new "triangle"
-            // ends up with two identical corners, a zero-area sliver that
-            // renders as a stray spike. Collisions aren't always between
-            // adjacent font points, so check the whole contour so far.
-            bool isDuplicate = false;
-            for (const Vertex& existing : contour) {
-                if (existing.x == onCurvePoint.x && existing.y == onCurvePoint.y) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-            if (!isDuplicate) {
-                contour.push_back(onCurvePoint);
-            }
-
-            // (on, off, on): a curve segment. Its control triangle's chord
-            // (this on-curve point to the next one) is already a constraint
-            // via `contour` above; add the two legs through the control
-            // point too, so the whole control triangle is forced intact.
-            size_t nextIdx = contourStartIndex + ((k + 1) % len);
-            if ((flags[nextIdx] & 1) == 0) {
-                size_t endIdx = contourStartIndex + ((k + 2) % len);
-                Vertex control = toVertex(nextIdx);
-                Vertex curveEnd = toVertex(endIdx);
-
-                extraVertices.push_back(control);
-                extraConstraints.push_back({onCurvePoint, control});
-                extraConstraints.push_back({control, curveEnd});
-                expectedCurveTriangles.push_back({onCurvePoint, control, curveEnd});
-            }
-        }
-
-        contours.push_back(contour);
-        contourStartIndex = static_cast<int>(endpoint) + 1;
-    }
-
-    vector<Triangle> triangles = triangulateConstrained(contours, extraVertices, extraConstraints, expectedCurveTriangles);
-
+    return Glyph::parseCompoundGlyph(data, locas, glyfTableBase, pos, xMin, yMin, xMax, yMax);
 }
 
 void Glyph::addPointsBetween() {
@@ -409,3 +345,156 @@ void Glyph::printGlyph() {
         cout << "Point " << i << " X: " << xCoordinates[i] << ", Y: " << yCoordinates[i] << ", Flags: " << bitset<8>(flags[i]) << '\n';
     }
 }
+
+const vector<Triangle>& Glyph::getTriangles() const { return triangles; }
+
+
+void Glyph::triangulateGlyph(const FontTransform& ftrans) {
+    // Local pixel space: no xOffset/yOffset -- those depend on where this
+    // glyph lands in a rendered string, which parsing doesn't know. The
+    // caller translates the cached result at draw time instead.
+    auto toVertex = [&](size_t idx) -> Vertex {
+        int px = static_cast<int>(ftrans.toPixels(xCoordinates[idx]));
+        int py = ftrans.toScreenY(yCoordinates[idx], 0);
+        return {px, py};
+    };
+
+    // Shoelace winding sign, usable on a contour (N points) or a single
+    // triangle (3 points) alike -- as long as both callers pass points in
+    // the same coordinate space, the results are directly comparable. Using
+    // one function for both matters: comparing a contour winding computed in
+    // font-unit (y-up) space against a triangle winding computed in screen
+    // (y-down) space would have opposite sign conventions for the same
+    // real-world shape.
+    auto windingSign = [](const std::vector<Vertex>& pts) -> int {
+        long long area2 = 0;
+        for (size_t i = 0; i < pts.size(); ++i) {
+            const Vertex& a = pts[i];
+            const Vertex& b = pts[(i + 1) % pts.size()];
+            area2 += static_cast<long long>(a.x) * b.y - static_cast<long long>(b.x) * a.y;
+        }
+        return area2 < 0 ? 1 : 0; // 1 = clockwise, 0 = counter-clockwise (screen space)
+    };
+
+    vector<Contour> contours;
+    contours.reserve(endPtsOfContours.size());
+    vector<Vertex> extraVertices;        // off-curve control points, inserted alongside the contours
+    vector<Edge> extraConstraints;       // each curve's two legs: on-curve -> control -> on-curve
+    vector<Triangle> expectedCurveTriangles; // the exact (on, control, on) triangle for each curve segment
+
+    int contourStartIndex = 0;
+    for (uint16_t endpoint : endPtsOfContours) {
+        auto len = static_cast<int>(endpoint) - contourStartIndex + 1;
+        Contour contour;
+
+        for (int k = 0; k < len; ++k) {
+            size_t idx = contourStartIndex + k;
+            if ((flags[idx] & 1) == 0) {
+                continue; // off-curve points are only handled via their on-curve neighbor below
+            }
+
+            Vertex onCurvePoint = toVertex(idx);
+            // Two distinct font-unit coordinates can round to the same
+            // screen pixel at small font sizes (seen in Astloch-Regular's
+            // 'A', where indices 45/46 both land on (58,271) at size 400).
+            // Feeding triangulateConstrained a duplicate point makes it
+            // insert a vertex that's already there -- the new "triangle"
+            // ends up with two identical corners, a zero-area sliver that
+            // renders as a stray spike. Collisions aren't always between
+            // adjacent font points, so check the whole contour so far.
+            bool isDuplicate = false;
+            for (const Vertex& existing : contour) {
+                if (existing.x == onCurvePoint.x && existing.y == onCurvePoint.y) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+            if (!isDuplicate) {
+                contour.push_back(onCurvePoint);
+            }
+
+            // (on, off, on): a curve segment. Its control triangle's chord
+            // (this on-curve point to the next one) is already a constraint
+            // via `contour` above; add the two legs through the control
+            // point too, so the whole control triangle is forced intact.
+            size_t nextIdx = contourStartIndex + ((k + 1) % len);
+            if ((flags[nextIdx] & 1) == 0) {
+                size_t endIdx = contourStartIndex + ((k + 2) % len);
+                Vertex control = toVertex(nextIdx);
+                Vertex curveEnd = toVertex(endIdx);
+
+                extraVertices.push_back(control);
+                extraConstraints.push_back({onCurvePoint, control});
+                extraConstraints.push_back({control, curveEnd});
+                expectedCurveTriangles.push_back({onCurvePoint, control, curveEnd});
+            }
+        }
+
+        contours.push_back(contour);
+        contourStartIndex = static_cast<int>(endpoint) + 1;
+    }
+
+    triangles = triangulateConstrained(contours, extraVertices, extraConstraints, expectedCurveTriangles);
+
+    auto sameVertexSet = [](const Triangle& a, const Triangle& b) -> bool {
+        Vertex av[3] = {a.v0, a.v1, a.v2};
+        Vertex bv[3] = {b.v0, b.v1, b.v2};
+        bool used[3] = {false, false, false};
+        for (const Vertex& vertex : av) {
+            bool found = false;
+            for (int j = 0; j < 3; ++j) {
+                if (!used[j] && vertex == bv[j]) {
+                    used[j] = true;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // Each triangle's position on the glyph: 0 = ordinary solid fill, 1 =
+    // curve wedge using the direct Loop-Blinn test, 2 = curve wedge using
+    // the flipped test. This is an ABSOLUTE per-wedge decision based on the
+    // wedge's own (onCurve, control, onCurve) screen-space winding -- not
+    // compared against its contour's winding. A fixed per-contour flip
+    // (hole vs. outer) fixed holes but broke single-contour glyphs with
+    // real local concave/convex variation within the same contour (e.g.
+    // 'f''s hook curls the opposite way from the rest of its one contour).
+    // Comparing each wedge's own absolute orientation to a fixed threshold
+    // handles both: it was already equivalent to the per-contour rule for
+    // any contour whose own winding happens to be 0 (that's why fixing
+    // outer contours never needed revisiting), and naturally varies
+    // per-wedge within a single contour where the old per-contour rule
+    // couldn't.
+    for (const Triangle& triangle : triangles) {
+        size_t matchedIndex = expectedCurveTriangles.size();
+        for (size_t ci = 0; ci < expectedCurveTriangles.size(); ++ci) {
+            if (sameVertexSet(triangle, expectedCurveTriangles[ci])) {
+                matchedIndex = ci;
+                break;
+            }
+        }
+
+        if (matchedIndex < expectedCurveTriangles.size()) {
+            const Triangle& expected = expectedCurveTriangles[matchedIndex];
+            int triangleWinding = windingSign({expected.v0, expected.v1, expected.v2});
+            trianglePositions.push_back(triangleWinding == 0 ? 1 : 2);
+            // expectedCurveTriangles[matchedIndex] was built as (onCurve,
+            // control, onCurve), but sameVertexSet matches regardless of
+            // order, so `triangle`'s own v0/v1/v2 may have the control point
+            // at any position -- record which vertex it actually is.
+            curveControlPoints.push_back(expected.v1);
+        } else {
+            trianglePositions.push_back(0);
+            curveControlPoints.push_back({});
+        }
+    }
+
+}
+
+const vector<int>& Glyph::getTrianglePositions() const { return trianglePositions; }
+const vector<Vertex>& Glyph::getCurveControlPoints() const { return curveControlPoints; }

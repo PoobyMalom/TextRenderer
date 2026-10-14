@@ -32,7 +32,7 @@ public:
 
     static TTFFile parse(const std::vector<char>& data);
     Glyph parseGlyph(const std::vector<char>& data, uint32_t unicode, bool insertBezierMidpoints = true);
-    std::vector<Glyph> parseGlyphs(const std::vector<char>& data, const std::string& letters);
+    std::vector<Glyph> parseGlyphs(const std::vector<char>& data, const std::string& letters, const FontTransform& ftrans);
 
 private:
     TTFHeader header;

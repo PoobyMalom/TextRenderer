@@ -160,16 +160,16 @@ DemoContext buildContext(const string& primaryFontPath) {
     Glyph rawG = primary.ttf.parseGlyph(primary.buffer, static_cast<uint32_t>('g'), false);
     Glyph curveG = primary.ttf.parseGlyph(primary.buffer, static_cast<uint32_t>('g'), true);
 
-    vector<Glyph> monoGlyphs = mono.ttf.parseGlyphs(mono.buffer, SPACING_SAMPLE_TEXT);
-    vector<Glyph> propGlyphs = prop.ttf.parseGlyphs(prop.buffer, SPACING_SAMPLE_TEXT);
-    vector<Glyph> paraGlyphs = primary.ttf.parseGlyphs(primary.buffer, PARAGRAPH_SAMPLE_LINE);
-    vector<Glyph> tallParaGlyphs = tall.ttf.parseGlyphs(tall.buffer, PARAGRAPH_SAMPLE_LINE);
-
     FontTransform zoomFtrans{900.0F, primary.ttf.getHeadTable().unitsPerEm};
     FontTransform monoFtrans{64.0F, mono.ttf.getHeadTable().unitsPerEm};
     FontTransform propFtrans{64.0F, prop.ttf.getHeadTable().unitsPerEm};
     FontTransform paraFtrans{64.0F, primary.ttf.getHeadTable().unitsPerEm};
     FontTransform tallFtrans{64.0F, tall.ttf.getHeadTable().unitsPerEm};
+
+    vector<Glyph> monoGlyphs = mono.ttf.parseGlyphs(mono.buffer, SPACING_SAMPLE_TEXT, monoFtrans);
+    vector<Glyph> propGlyphs = prop.ttf.parseGlyphs(prop.buffer, SPACING_SAMPLE_TEXT, propFtrans);
+    vector<Glyph> paraGlyphs = primary.ttf.parseGlyphs(primary.buffer, PARAGRAPH_SAMPLE_LINE, paraFtrans);
+    vector<Glyph> tallParaGlyphs = tall.ttf.parseGlyphs(tall.buffer, PARAGRAPH_SAMPLE_LINE, tallFtrans);
 
     float constantAdvanceMonoUnits = averageAdvanceUnits(monoGlyphs);
     float constantAdvancePropUnits = averageAdvanceUnits(propGlyphs);

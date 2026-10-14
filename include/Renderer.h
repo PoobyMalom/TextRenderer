@@ -18,14 +18,12 @@ struct GlyphRender {
   Glyph& glyph;
   GlyphBox& glyphBoundingBox;
   FontTransform& trans;
-  int xOffset;
-  int yOffset;
   SDL_Color fontColor;
 
-  void drawGlyph(SDL_Renderer* renderer);
+  void drawGlyph(SDL_Renderer* renderer, int xOffset, int yOffset) const;
 };
 
 void drawSimpleGlyph(SDL_Renderer* renderer, const Glyph& glyph, FontTransform& ftrans, int xOffset, int yOffset, int thickness);
 void drawSimpleGlyphDashed(SDL_Renderer* renderer, const Glyph& glyph, FontTransform& ftrans, int xOffset, int yOffset, int thickness);
 void drawSimpleGlyphLines(SDL_Renderer* renderer, const Glyph& glyph, FontTransform& ftrans, int xOffset, int yOffset);
-void drawTriangulatedGlyph(SDL_Renderer* renderer, const Glyph& glyph, FontTransform& ftrans, int xOffset, int yOffset);
+void drawTriangulatedGlyph(SDL_Renderer* renderer, const Glyph& glyph, int xOffset, int yOffset);

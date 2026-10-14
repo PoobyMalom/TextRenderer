@@ -83,12 +83,14 @@ Glyph TTFFile::parseGlyph(const vector<char>& data, uint32_t unicode, bool inser
     return parsedGlyph;
 }
 
-vector<Glyph> TTFFile::parseGlyphs(const vector<char>& data, const string& letters) {
+vector<Glyph> TTFFile::parseGlyphs(const vector<char>& data, const string& letters, const FontTransform& ftrans) {
     vector<uint32_t> chars = stringToUnicode(letters);
     vector<Glyph> glyphs;
     glyphs.reserve(chars.size());
     for (uint32_t charCode : chars) {
-        glyphs.push_back(parseGlyph(data, charCode));
+        Glyph glyph = parseGlyph(data, charCode);
+        glyph.triangulateGlyph(ftrans);
+        glyphs.push_back(glyph);
     }
     return glyphs;
 }

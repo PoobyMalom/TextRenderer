@@ -2,6 +2,7 @@
 #include "TTFTable.h"
 #include "Helpers.h"
 #include "FontTypes.h"
+#include "Metrics.h"
 #include "cdt/draw.h"
 #include <vector>
 
@@ -47,6 +48,18 @@ public:
     void addPointsBetween();
     void printGlyph();
 
+    // Triangulates in glyph-local pixel space (origin at the glyph's own
+    // baseline/left edge, not a pen position in some rendered string --
+    // parsing has no notion of where the glyph ends up on screen). Callers
+    // translate the cached result by their own (xOffset, yOffset) at draw
+    // time; translation doesn't change triangle connectivity, so this only
+    // needs to run once per glyph instead of once per frame.
+    void triangulateGlyph(const FontTransform& ftrans);
+    const std::vector<Triangle>& getTriangles() const;
+    const std::vector<int>& getTrianglePositions() const;
+    const std::vector<Vertex>& getCurveControlPoints() const;
+
+
 private:
     int16_t numberOfContours;
     std::vector<int> windingDirections;
@@ -64,6 +77,15 @@ private:
     FWord leftSideBearing;
 
     std::vector<Triangle> triangles;
+    // Triangles position 0 for inside the shape, 1 for exterior, 2 for interior
+    std::vector<int> trianglePositions;
+    // For curve triangles (position 1 or 2), which of the triangle's own
+    // vertices is actually the off-curve control point -- CDT's mesh
+    // triangle can store v0/v1/v2 in any rotation, not necessarily the
+    // (onCurve, control, onCurve) order they were constructed in, so this
+    // can't be assumed to always be v1. Unused (default-constructed) for
+    // position-0 triangles.
+    std::vector<Vertex> curveControlPoints;
 
     static uint16_t convertEndian16(uint16_t value);
     static uint32_t convertEndian32(uint32_t value);

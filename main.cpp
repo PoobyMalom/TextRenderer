@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
     vector<Glyph> glyphs;
     try {
         const string textToRender = "e";
-        glyphs = ttfFile.parseGlyphs(buffer, textToRender);
+        glyphs = ttfFile.parseGlyphs(buffer, textToRender, ftrans);
     } catch (const std::exception& err) {
         cerr << "Error parsing glyphs: " << err.what() << '\n';
         return 1;

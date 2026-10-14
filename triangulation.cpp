@@ -16,9 +16,9 @@ using namespace std;
 
 namespace {
 
-const float INITIAL_FONT_SIZE = 2000.0;
-const int SCREEN_WIDTH   = 1920;
-const int SCREEN_HEIGHT  = 1080;
+const float INITIAL_FONT_SIZE = 100.0;
+const int SCREEN_WIDTH   = 1920 * 1.5;
+const int SCREEN_HEIGHT  = 1080 * 1.5;
 const int CANVAS_WIDTH   = 10000;
 const int CANVAS_HEIGHT  = 10000;
 const int SCROLL_SPEED   = 20;
@@ -33,9 +33,9 @@ enum class Mode {
     AllPoints,
     Dashed,
     StraightLines,
-    Combined,
     Triangulated,
     CombinedTriangulated,
+    Rendered,
     Count
 };
 
@@ -185,7 +185,7 @@ void drawOffCurvePoints(SDL_Renderer* renderer, const Glyph& glyph, const FontTr
     }
 }
 
-void drawGlyph(SDL_Renderer* renderer, Mode mode, const Glyph& glyph, FontTransform& ftrans, int xOffset, int yOffset) {
+void drawGlyph(SDL_Renderer* renderer, Mode mode, const Glyph& glyph, const GlyphRender& glyphRender, FontTransform& ftrans, int xOffset, int yOffset) {
     switch (mode) {
         case Mode::Outline:
             drawSimpleGlyph(renderer, glyph, ftrans, xOffset, yOffset, GLYPH_THICKNESS);
@@ -206,27 +206,24 @@ void drawGlyph(SDL_Renderer* renderer, Mode mode, const Glyph& glyph, FontTransf
         case Mode::StraightLines:
             drawSimpleGlyphLines(renderer, glyph, ftrans, xOffset, yOffset);
             break;
-        case Mode::Combined:
-            drawSimpleGlyphDashed(renderer, glyph, ftrans, xOffset, yOffset, GLYPH_THICKNESS);
-            drawSimpleGlyphLines(renderer, glyph, ftrans, xOffset, yOffset);
-            drawOnCurvePoints(renderer, glyph, ftrans, xOffset, yOffset);
-            drawOffCurvePoints(renderer, glyph, ftrans, xOffset, yOffset);
-            break;
         case Mode::Triangulated:
-            drawTriangulatedGlyph(renderer, glyph, ftrans, xOffset, yOffset);
+            drawTriangulatedGlyph(renderer, glyph, xOffset, yOffset);
             break;
         case Mode::CombinedTriangulated:
-            drawTriangulatedGlyph(renderer, glyph, ftrans, xOffset, yOffset);
+            drawTriangulatedGlyph(renderer, glyph, xOffset, yOffset);
             drawSimpleGlyphDashed(renderer, glyph, ftrans, xOffset, yOffset, GLYPH_THICKNESS);
             drawOnCurvePoints(renderer, glyph, ftrans, xOffset, yOffset);
             drawOffCurvePoints(renderer, glyph, ftrans, xOffset, yOffset);
+            break;
+        case Mode::Rendered:
+            glyphRender.drawGlyph(renderer, xOffset, yOffset);
             break;
         default:
             break;
     }
 }
 
-void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture, ViewState& view, const vector<Glyph>& glyphs) {
+void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture, ViewState& view, const vector<Glyph>& glyphs, const vector<GlyphRender>& renderGlyphs) {
     if (view.canvasDirty) {
         SDL_SetRenderTarget(renderer, canvasTexture);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -242,7 +239,7 @@ void renderFrame(SDL_Renderer* renderer, SDL_Texture* canvasTexture, ViewState& 
                 currentYOffset += view.advanceHeight;
             }
             try {
-                drawGlyph(renderer, view.mode, glyphs[i], view.ftrans, currentXOffset, currentYOffset);
+                drawGlyph(renderer, view.mode, glyphs[i], renderGlyphs[i], view.ftrans, currentXOffset, currentYOffset);
             } catch (const std::exception& err) {
                 cerr << "Error drawing glyph " << i << ": " << err.what() << '\n';
             }
@@ -295,11 +292,23 @@ int main(int argc, char* argv[]) {
 
     vector<Glyph> glyphs;
     try {
-        const string textToRender = "feat";
-        glyphs = ttfFile.parseGlyphs(buffer, textToRender);
+        const string textToRender = "`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./+_)(*&^%$#@!~POIUYTREWQLKJHGFDSAMNBVCXZ<>?:\"}{|})";
+        glyphs = ttfFile.parseGlyphs(buffer, textToRender, view.ftrans);
     } catch (const std::exception& err) {
         cerr << "Error parsing glyphs: " << err.what() << '\n';
         return 1;
+    }
+
+    vector<GlyphBox> glyphBoxes;
+    glyphBoxes.reserve(glyphs.size());
+    for (Glyph& glyph : glyphs) {
+        glyphBoxes.push_back({glyph.getXMin(), glyph.getXMax(), glyph.getYMin(), glyph.getYMax()});
+    }
+
+    vector<GlyphRender> glyphRenders;
+    glyphRenders.reserve(glyphs.size());
+    for (size_t i = 0; i < glyphs.size(); ++i) {
+        glyphRenders.push_back({glyphs[i], glyphBoxes[i], view.ftrans, {}});
     }
 
     SDL_Window*   window        = initializeWindow("Triangulation", SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -311,7 +320,7 @@ int main(int argc, char* argv[]) {
 
     SDL_Event evt;
     while (!view.quit) {
-        renderFrame(renderer, canvasTexture, view, glyphs);
+        renderFrame(renderer, canvasTexture, view, glyphs, glyphRenders);
         SDL_RenderPresent(renderer);
 
         // Nothing animates, so sleep until input arrives rather than redrawing
