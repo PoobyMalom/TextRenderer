@@ -16,14 +16,14 @@ using namespace std;
 
 namespace {
 
-const float INITIAL_FONT_SIZE = 100.0;
+const float INITIAL_FONT_SIZE = 40.0;
 const int SCREEN_WIDTH   = 1920 * 1.5;
 const int SCREEN_HEIGHT  = 1080 * 1.5;
 const int CANVAS_WIDTH   = 10000;
 const int CANVAS_HEIGHT  = 10000;
 const int SCROLL_SPEED   = 20;
 const int GLYPH_THICKNESS = 2;
-const int ON_CURVE_DOT_RADIUS = 2;
+const int ON_CURVE_DOT_RADIUS = 4;
 
 // Each mode is bound to a number key (1 = first mode, 2 = second, ...).
 enum class Mode {
@@ -146,6 +146,23 @@ void handleEvent(const SDL_Event& evt, SDL_Window* window, ViewState& view) {
     clampViewport(view);
 }
 
+void SDL_RenderDrawCircle(SDL_Renderer *renderer, float cx, float cy, float radius) {
+    const int num_segments = 100; // Increase for a smoother circle
+    float angle_step = (2.0f * M_PI) / num_segments;
+
+    for (int i = 0; i < num_segments; ++i) {
+        float angle1 = i * angle_step;
+        float angle2 = (i + 1) * angle_step;
+
+        float x1 = cx + radius * std::cos(angle1);
+        float y1 = cy + radius * std::sin(angle1);
+        float x2 = cx + radius * std::cos(angle2);
+        float y2 = cy + radius * std::sin(angle2);
+
+        SDL_RenderLine(renderer, x1, y1, x2, y2);
+    }
+}
+
 // Mode 2: a filled square at every on-curve point of the glyph.
 void drawOnCurvePoints(SDL_Renderer* renderer, const Glyph& glyph, const FontTransform& ftrans, int xOffset, int yOffset) {
     const vector<int16_t>& xs = glyph.getXCoordinates();
@@ -160,9 +177,12 @@ void drawOnCurvePoints(SDL_Renderer* renderer, const Glyph& glyph, const FontTra
         float screenX = ftrans.toPixels(xs[i]) + static_cast<float>(xOffset);
         auto screenY = static_cast<float>(ftrans.toScreenY(ys[i], yOffset));
         // cout << "Coord: (" << screenX << ", " << screenY << ")" << "\n";
-        SDL_FRect rect = {screenX - ON_CURVE_DOT_RADIUS, screenY - ON_CURVE_DOT_RADIUS,
-                          ON_CURVE_DOT_RADIUS * 2.0F, ON_CURVE_DOT_RADIUS * 2.0F};
-        SDL_RenderFillRect(renderer, &rect);
+        // SDL_FRect rect = {screenX - ON_CURVE_DOT_RADIUS, screenY - ON_CURVE_DOT_RADIUS,
+        //                   ON_CURVE_DOT_RADIUS * 2.0F, ON_CURVE_DOT_RADIUS * 2.0F};
+        // SDL_RenderFillRect(renderer, &rect);
+        for (int i = 0; i < ON_CURVE_DOT_RADIUS; i++) {
+            SDL_RenderDrawCircle(renderer, screenX, screenY, i);
+        }
     }
 }
 
@@ -179,9 +199,12 @@ void drawOffCurvePoints(SDL_Renderer* renderer, const Glyph& glyph, const FontTr
         }
         float screenX = ftrans.toPixels(xs[i]) + static_cast<float>(xOffset);
         auto screenY = static_cast<float>(ftrans.toScreenY(ys[i], yOffset));
-        SDL_FRect rect = {screenX - ON_CURVE_DOT_RADIUS, screenY - ON_CURVE_DOT_RADIUS,
-                          ON_CURVE_DOT_RADIUS * 2.0F, ON_CURVE_DOT_RADIUS * 2.0F};
-        SDL_RenderFillRect(renderer, &rect);
+        // SDL_FRect rect = {screenX - ON_CURVE_DOT_RADIUS, screenY - ON_CURVE_DOT_RADIUS,
+        //                   ON_CURVE_DOT_RADIUS * 2.0F, ON_CURVE_DOT_RADIUS * 2.0F};
+        // SDL_RenderFillRect(renderer, &rect);
+        for (int i = 0; i < ON_CURVE_DOT_RADIUS; i++) {
+            SDL_RenderDrawCircle(renderer, screenX, screenY, i);
+        }
     }
 }
 
@@ -292,7 +315,7 @@ int main(int argc, char* argv[]) {
 
     vector<Glyph> glyphs;
     try {
-        const string textToRender = "`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./+_)(*&^%$#@!~POIUYTREWQLKJHGFDSAMNBVCXZ<>?:\"}{|})";
+        const string textToRender = "  a";
         glyphs = ttfFile.parseGlyphs(buffer, textToRender, view.ftrans);
     } catch (const std::exception& err) {
         cerr << "Error parsing glyphs: " << err.what() << '\n';
